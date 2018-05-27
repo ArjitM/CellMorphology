@@ -1,10 +1,13 @@
+from multiprocessing.dummy import Pool
 import numpy as np 
+#from __future__ import division
 
 import skimage
 from skimage import io
 from skimage import external
 from skimage import morphology
 import math
+
 
 
 class Compartment:
@@ -35,7 +38,9 @@ class Compartment:
 			for j in range(self.coordinates['left'], self.coordinates['right']):
 				if binary[i][j] == 0:
 					border += 1
-		return border / ((self.coordinates['right'] - self.coordinates['left']) * (self.coordinates['bottom'] - self.coordinates['top'])) 
+		area = (self.coordinates['right'] - self.coordinates['left']) * (self.coordinates['bottom'] - self.coordinates['top'])
+		return border / area
+
 
 	def set_noise_compartment(self, value):
 		self.noise_compartment = bool(value)
@@ -62,7 +67,7 @@ class Compartmentalize:
 
 		while ki < i_max:
 			while kj < j_max:
-				#print(ki, kj, '***')
+
 				self.compartments.append(Compartment(kj, min(kj+size, j_max), ki, min(ki+size, i_max), image_values))
 				kj += size
 			kj = 0
@@ -74,11 +79,16 @@ class Compartmentalize:
 	def getCompartment(self, i, j):
 		return self.compartments[(j // self.size) + (i // self.size) * (self.j_max // self.size)]
 
-	def getAvgBorder(self, binary):
+	def getAvgBorder(self, binary, border_thresh):
+		#print("***", len(self.compartments))
 		for c in self.compartments:
 			k = c.borderPercent(binary)
-			if k > 0.7:
+			#print(k)
+			if k > border_thresh:
 				c.set_noise_compartment(True)
+				#print("Noise identified")
+			else:
+				c.set_noise_compartment(False)
 
 		not_Noise = filter(lambda c: not bool(c.noise_compartment), self.compartments)
 		
@@ -107,12 +117,15 @@ class Noise:
 
 	def detectNoise_BIN(self, i, j, neighbors):
 		num = len(neighbors)
-		diff = 0
+		hits = 0
+		hit_vals = []
 		for (y, x) in neighbors:
 			if self.image_values[i][j] != self.image_values[y][x]:
-				diff += 1
-		return [diff > (num * 0.5), WHITE if self.image_values[i][j] == 0 else 0]
-		#return [diff > (num * 0.5) and self.image_values[i][j] != 0, 0]
+				hits += 1
+				hit_vals.append(1)
+			else:
+				hit_vals.append(0)
+		return [hits > (num * 0.5), WHITE] if self.image_values[i][j] == 0 else [hits > (num * 0.5), 0]
 
 	def smooth(self):
 		for i in range(len(self.image_values)):
@@ -136,9 +149,10 @@ def getNeighborIndices(image_values, i, j):
 	neighbors = []
 	for ki in range(-1, 2):
 		for kj in range(-1, 2):
-			if i + ki >= 0 and j + kj >= 0 and i + ki < len(image_values) and j + kj < len(image_values[0]):
+			if i + ki >= 0 and j + kj >= 0 and i + ki < len(image_values) and j + kj < len(image_values[0]) and not (ki==0 and kj==0):
 				neighbors.append((i+ki, j+kj))
 	return neighbors
+
 
 
 def basicEdge(pic_array, out_array, regions):
@@ -163,42 +177,90 @@ def basicEdge(pic_array, out_array, regions):
 				out_array[i][j] = WHITE
 
 def enhanceEdges(pic_array, out_array, regions):
-	borderMean = regions.getAvgBorder(out_array)
-	tolerance = 0.1 * WHITE # +/- 10 % of total image range
+	borderMean = regions.getAvgBorder(out_array, 0.95)
+	tolerance = 0.07 * WHITE # +/- 10 % of total image range
 	for i in range(len(out_array)):
 		for j in range(len(out_array[0])):
 			if borderMean - tolerance <= pic_array[i][j] and borderMean + tolerance >= pic_array[i][j]:
 				out_array[i][j] = 0
+			elif pic_array[i][j] > borderMean:
+				out_array[i][j] = 0 #blackens blood vessels
+			elif pic_array[i][j] < borderMean and regions.getCompartment(i, j).noise_compartment == False:
+				out_array[i][j] = WHITE
+			#if regions.getCompartment(i, j).noise_compartment == True:
+			#	out_array[i][j] = WHITE // 2
+
+def growCells(pic_array, out_array, regions):
+	borderMean = regions.getAvgBorder(out_array, 0.999)
+	tolerance = 0.06 * WHITE
+	for i in range(len(out_array)):
+		for j in range(len(out_array[0])):
+			if pic_array[i][j] < borderMean - tolerance and regions.getCompartment(i, j).noise_compartment == False:
+				out_array[i][j] = WHITE
 
 
-cells = io.imread('/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/TRIAL/piece-0019.tif')
-
-skimage.external.tifffile.imsave('/mnt/c/Users/Arjit/Documents/Kramer Lab/TRIALPY.tif', cells)
-
-with skimage.external.tifffile.TiffFile('/mnt/c/Users/Arjit/Documents/Kramer Lab/TRIALPY.tif') as pic:
-
-	pic_array = pic.asarray();
-	out_array = pic.asarray(); #copy dimensions
-	WHITE = skimage.dtype_limits(pic_array, True)[1]
-	#pic_array = [[float(x) for x in row] for row in pic_array]
-	regions = Compartmentalize(pic_array, 32)
-
-	basicEdge(pic_array, out_array, regions) # out_array is modified
-
-	skimage.external.tifffile.imsave('/mnt/c/Users/Arjit/Documents/Kramer Lab/TRIAL_PROCESSED.tif', out_array)
-
-	enhanceEdges(pic_array, out_array, regions)
-	skimage.external.tifffile.imsave('/mnt/c/Users/Arjit/Documents/Kramer Lab/TRIAL_Edge.tif', out_array)
 
 
-	noise_handler = Noise(out_array, iterations=3, binary=True)
-	noise_handler.reduce()
+def process_image(inFile):
 
-	skimage.external.tifffile.imsave('/mnt/c/Users/Arjit/Documents/Kramer Lab/TRIAL_NOISE_reversefunc3_s.tif', out_array)
+	#cells = io.imread(inFile)
+	#skimage.external.tifffile.imsave('/mnt/c/Users/Arjit/Documents/Kramer Lab/TRIALPY.tif', cells)
+
+	with skimage.external.tifffile.TiffFile(inFile) as pic:
+
+		pic_array = pic.asarray();
+		out_array = pic.asarray(); #copy dimensions
+		global WHITE
+		WHITE = skimage.dtype_limits(pic_array, True)[1]
+		#pic_array = [[float(x) for x in row] for row in pic_array]
+		regions = Compartmentalize(pic_array, 32)
+
+		basicEdge(pic_array, out_array, regions) # out_array is modified
+
+		skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
+
+		enhanceEdges(pic_array, out_array, regions)
+		skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
+
+		'''noise_handler = Noise(out_array, iterations=1, binary=True)
+		noise_handler.reduce()
+		skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeNoise1.tif'), out_array)
 
 
-	#skimage.external.tifffile.imsave('/mnt/c/Users/Arjit/Documents/Kramer Lab/TRIAL_skeleton.tif', skimage.morphology.opening(pic_array))
-#out_regions = Compartmentalize(out_array, 16)
+		growCells(pic_array, out_array, regions)
+		skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeGrown.tif'), out_array)'''
+
+		noise_handler = Noise(out_array, iterations=3, binary=True)
+		noise_handler.reduce()
+
+		skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
+
+
+
+prefixes = ['/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f3_normal/eye1-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-']
+
+#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-',
+
+def parallel(prefix):
+	x = 1
+	while True:
+		try:
+			process_image(prefix + str(x).rjust(4, '0') + '.tif')
+		except IOError:
+			break
+		else:
+			print(prefix)
+			x += 1
+
+with Pool(5) as p:
+	p.map(parallel, prefixes)
 
 
 
