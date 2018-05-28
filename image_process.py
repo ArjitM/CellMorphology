@@ -79,19 +79,16 @@ class Compartmentalize:
 	def getCompartment(self, i, j):
 		return self.compartments[(j // self.size) + (i // self.size) * (self.j_max // self.size)]
 
-	def getAvgBorder(self, binary, border_thresh):
-		#print("***", len(self.compartments))
+	def setNoiseCompartments(self, binary, border_thresh):
 		for c in self.compartments:
 			k = c.borderPercent(binary)
-			#print(k)
 			if k > border_thresh:
 				c.set_noise_compartment(True)
-				#print("Noise identified")
 			else:
 				c.set_noise_compartment(False)
 
-		not_Noise = filter(lambda c: not bool(c.noise_compartment), self.compartments)
-		
+	def getAvgBorder(self, binary):
+		not_Noise = filter(lambda c: not bool(c.noise_compartment), self.compartments)		
 		return np.mean([c.avgBorder(binary) for c in not_Noise if c.hasBorder])
 
 
@@ -139,12 +136,6 @@ class Noise:
 			self.smooth()
 
 
-'''
-class Cell:
-	def __init__(self, pivot)
-	#Max rdius
-	#propagate'''
-
 def getNeighborIndices(image_values, i, j):
 	neighbors = []
 	for ki in range(-1, 2):
@@ -177,7 +168,8 @@ def basicEdge(pic_array, out_array, regions):
 				out_array[i][j] = WHITE
 
 def enhanceEdges(pic_array, out_array, regions):
-	borderMean = regions.getAvgBorder(out_array, 0.95)
+	global borderMean
+	borderMean = regions.getAvgBorder(out_array)
 	tolerance = 0.07 * WHITE # +/- 10 % of total image range
 	for i in range(len(out_array)):
 		for j in range(len(out_array[0])):
@@ -190,21 +182,80 @@ def enhanceEdges(pic_array, out_array, regions):
 			#if regions.getCompartment(i, j).noise_compartment == True:
 			#	out_array[i][j] = WHITE // 2
 
-def growCells(pic_array, out_array, regions):
-	borderMean = regions.getAvgBorder(out_array, 0.999)
-	tolerance = 0.06 * WHITE
-	for i in range(len(out_array)):
-		for j in range(len(out_array[0])):
-			if pic_array[i][j] < borderMean - tolerance and regions.getCompartment(i, j).noise_compartment == False:
-				out_array[i][j] = WHITE
+def internalBorder(pic_array, out_array, regions):
+	pass
+
+
+class Cluster:
+
+	clusters = []
+
+	def __init__(self, binary, pivot):
+
+		for c in Cluster.clusters:
+			if c.contains(pivot):
+				raise ValueError('pivot already in cluster')
+		assert type(pivot) == tuple and len(pivot) == 2, 'represent points as (i, j)'
+
+		self.points = []
+		self.add_Point(pivot)
+		Cluster.clusters.append(self)
+		self.binary = binary
+		self.boundary = []
+
+	def add_Point(self, point):
+		self.points.append(point)
+
+	def propagate(self, start):
+		#print("in propagate")
+		if not self.contains(start):
+			self.points.append(start)
+		neighbors = list(filter(lambda p: self.binary[p[0]][p[1]] == WHITE, getNeighborIndices(self.binary, start[0], start[1])))
+		if len(neighbors) != 8:
+			self.boundary.append(start)
+		for n in filter(lambda p: not (self.contains(p)), neighbors):
+			self.propagate(n)
+
+	def contains(self, point):
+		return point in self.points
+
+
+
+		
+def makeClusters(binary, regions):
+	#using regions speeds up search
+	for c in regions.compartments:
+		if c.noise_compartment:
+			continue
+		i, j = c.coordinates['top'], c.coordinates['left']
+		cluster = None
+		while i < c.coordinates['bottom']:
+			while j < c.coordinates['right']:
+				if binary[i][j] == WHITE:
+					try:
+						cluster = Cluster(binary, (i, j))
+					except ValueError:
+						pass
+					else:
+						cluster.propagate((i, j))
+						cluster.points.sort()
+					finally:
+						if cluster is not None:
+							row = list(filter(lambda p: p[0] == i, cluster.points))
+							right = row[-1][1] #j coordinate of last point in the row
+							j = right
+				else:
+					j += 1
+			i += 3 #cluster must be at least 3 pixels high
+
+
+
+
 
 
 
 
 def process_image(inFile):
-
-	#cells = io.imread(inFile)
-	#skimage.external.tifffile.imsave('/mnt/c/Users/Arjit/Documents/Kramer Lab/TRIALPY.tif', cells)
 
 	with skimage.external.tifffile.TiffFile(inFile) as pic:
 
@@ -212,44 +263,42 @@ def process_image(inFile):
 		out_array = pic.asarray(); #copy dimensions
 		global WHITE
 		WHITE = skimage.dtype_limits(pic_array, True)[1]
-		#pic_array = [[float(x) for x in row] for row in pic_array]
 		regions = Compartmentalize(pic_array, 32)
 
 		basicEdge(pic_array, out_array, regions) # out_array is modified
-
 		skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
+
+		regions.setNoiseCompartments(pic_array, 0.95)
 
 		enhanceEdges(pic_array, out_array, regions)
 		skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
 
-		'''noise_handler = Noise(out_array, iterations=1, binary=True)
-		noise_handler.reduce()
-		skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeNoise1.tif'), out_array)
-
-
-		growCells(pic_array, out_array, regions)
-		skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeGrown.tif'), out_array)'''
 
 		noise_handler = Noise(out_array, iterations=3, binary=True)
 		noise_handler.reduce()
 
 		skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
 
+		print("***made binary")
+
+		makeClusters(out_array, regions)
+		print(Cluster.clusters, len(Cluster.clusters))
 
 
-prefixes = ['/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
+
+'''prefixes = ['/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
 '/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
 '/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
 '/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
 '/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f3_normal/eye1-',
 '/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
 '/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-']
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-']'''
 
-#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-',
+prefix = '/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-'
 
 def parallel(prefix):
-	x = 1
+	x = 24
 	while True:
 		try:
 			process_image(prefix + str(x).rjust(4, '0') + '.tif')
@@ -259,8 +308,9 @@ def parallel(prefix):
 			print(prefix)
 			x += 1
 
-with Pool(5) as p:
-	p.map(parallel, prefixes)
+#with Pool(5) as p:
+#	p.map(parallel, prefixes)
+parallel(prefix)
 
 
 
