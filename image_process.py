@@ -6,6 +6,7 @@ import skimage
 from skimage import io
 from skimage import external
 from skimage import morphology
+from skimage import filters
 import math
 
 
@@ -195,6 +196,8 @@ def basicEdge(pic_array, out_array, regions):
                 out_array[i][j] = 0
             elif abs(left - diagonal) > cut:
                 out_array[i][j] = 0
+            elif left ==  WHITE:
+                out_array[i][j] = 0 #remove saturated pixels
             else:
                 out_array[i][j] = WHITE
 
@@ -214,84 +217,120 @@ def enhanceEdges(pic_array, out_array, regions):
             #   out_array[i][j] = WHITE // 2
 
 
-class Cluster:
-
-    clusters = []
-
-    def __init__(self, binary, pivot):
-
-        for c in Cluster.clusters:
-            if c.contains(pivot):
-                raise ValueError('pivot already in cluster')
-        assert type(pivot) == tuple and len(pivot) == 2, 'represent points as (i, j)'
-
-        self.points = []
-        self.add_Point(pivot)
-        Cluster.clusters.append(self)
-        self.binary = binary
-        self.boundary = []
-
-    def add_Point(self, point):
-        self.points.append(point)
-
-    def propagate(self, start):
-        #print("in propagate")
-        if not self.contains(start):
-            self.points.append(start)
-        neighbors = list(filter(lambda p: self.binary[p[0]][p[1]] == WHITE, getNeighborIndices(self.binary, start[0], start[1])))
-        if len(neighbors) != 8:
-            self.boundary.append(start)
-        for n in filter(lambda p: not (self.contains(p)), neighbors):
-            self.propagate(n)
-
-    def contains(self, point):
-        return point in self.points
-
-
-
-        
-def makeClusters(binary, regions):
-    #using regions speeds up search
-    for c in regions.compartments:
-        if c.noise_compartment:
-            continue
-        i, j = c.coordinates['top'], c.coordinates['left']
-        cluster = None
-        while i < c.coordinates['bottom']:
-            while j < c.coordinates['right']:
-                if binary[i][j] == WHITE:
-                    try:
-                        cluster = Cluster(binary, (i, j))
-                    except ValueError:
-                        pass
-                    else:
-                        cluster.propagate((i, j))
-                        cluster.points.sort()
-                    finally:
-                        if cluster is not None:
-                            row = list(filter(lambda p: p[0] == i, cluster.points))
-                            right = row[-1][1] #j coordinate of last point in the row
-                            j = right
-                else:
-                    j += 1
-            i += 3 #cluster must be at least 3 pixels high
-
 
 def findBoundaryPoints(binary):
     boundary = []
     for i in range(len(binary)):
         for j in range(len(binary[0])):
-
-            if binary[i][j] == WHITE and len(list(filter(lambda p: binary[p[0]][p[1]] == WHITE, getNeighborIndices(binary, i, j)))) != 8:
-                boundary.append((i, j))
+            n_touching = len(list(filter(lambda p: binary[p[0]][p[1]] == WHITE, getNeighborIndices(binary, i, j))))
+            #number of neighbors that are within a potential cell
+            if binary[i][j] == WHITE and n_touching != 8:
+                boundary.append((i, j, n_touching < 4)) #last argument is cusp boolean
     return boundary
 
 def internalBorder(pic_array, out_array, boundary):
+    boundaryIndices = [(b[0], b[1]) for b in boundary] #no cusp boolean
     tolerance = 0.15 * WHITE #lenient
     for i in range(len(pic_array)):
         for j in range(len(pic_array[0])):
-            if pic_array[i][j] > borderMean - tolerance and (i, j) not in boundary:
+            if pic_array[i][j] > borderMean - tolerance and (i, j) not in boundaryIndices:
                 out_array[i][j] = 0
+
+class Cluster:
+
+    clusters = []
+
+    def __init__(self, binary, boundary):
+
+        '''for c in Cluster.clusters:
+            if c.contains(pivot):
+                raise ValueError('pivot already in cluster')
+        assert type(pivot) == tuple and len(pivot) == 2, 'represent points as (i, j)'
+        '''
+        self.boundary = boundary
+        self.boundary2D = self.getBoundary2D()
+        self.binary = binary
+        self.cells = []
+
+        if not isinstance(self, Cell):
+            Cluster.clusters.append(self)
+
+    def getBoundary2D(self):
+        self.boundary.sort() #default key sort tuples (i, j) by i then j
+        return [list(filter(lambda p: p[0] == x, self.boundary) for x in range(self.boundary[0][0], self.boundary[-1][0] + 1))]
+
+    def propagateInternalBoundaries():
+        pass
+
+
+    def add_Point(self, point):
+        self.points.append(point)
+
+    def kill(self):
+        #Cluster.clusters.delete(self) ??
+        pass
+
+class Cell(Cluster):
+
+    def __init__(self, binary, boundary):
+        super.__init__(self, binary, boundary)
+        self.points = self.getPoints()
+
+    def getPoints(self):
+        pass
+
+    def area(self):
+        pass
+
+    def eccentricity(self):
+        pass
+
+
+
+def makeClusters(binary, boundary):
+    
+    def bckwdsGen(sequence, rowNum):
+        k = -1
+        try:
+            while sequence[k][0] >= rowNum - 1: #last two rows only
+                yield sequence[k]
+                k-=1
+        except IndexError:
+            pass
+
+    
+    if len(boundary) == 0:
+        return
+    boundary.sort() #should be sorted but double-checking; sort by i then j
+    clusterBounds = [ [ boundary[0] ] ] #add open/close vars for efficiency
+
+    for bi in range(1, len(boundary)):
+        b = boundary[bi]
+        inCluster = False
+        
+        for ci in range(len(clusterBounds)):
+            c = clusterBounds[ci]
+
+            for s in bckwdsGen(c, b[0]):
+                print(b, s)
+                if abs(max(b[0]-s[0], b[1]-s[1], key=abs)) == 1: #if neighbors, alternative approach for efficiency
+                    c.append(b)
+                    inCluster = True
+                    print("added to existing cluster***")
+                    break
+            if inCluster:
+                break
+
+        #if not inCluster:
+        #    print("created new cluster%%%%%%%")
+        #    clusterBounds.append([b])
+
+    clusters = []
+    for c in clusterBounds:
+        clusters.append(Cluster(binary, c))
+    return clusterBounds
+
+
 
 
 
@@ -308,6 +347,9 @@ def process_image(inFile):
 
         basicEdge(pic_array, out_array, regions) # out_array is modified
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
+        #skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeSobel.tif'), skimage.img_as_uint(skimage.filters.sobel(pic_array)))
+
+
 
         regions.setNoiseCompartments(out_array, 0.95)
 
@@ -322,27 +364,54 @@ def process_image(inFile):
 
         print("***made binary")
 
-        internalBorder(pic_array, out_array, findBoundaryPoints(out_array))
+        boundary = findBoundaryPoints(out_array)
+
+        b = [(b[0], b[1]) for b in boundary]
+
+        internalBorder(pic_array, out_array, boundary)
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinEnhanced.tif'), out_array)
 
-        #makeClusters(out_array, regions)
+
+
+        clusters = makeClusters(out_array, boundary)
+        print(len(clusters))
+        print(clusters)
+        
+        #for k in range(100):
+            #ck = [(c[0], c[1]) for c in clusters[k]]
+            #c_arr = out_array[:]
+            #for i in range(len(c_arr)):
+                #for j in range(len(c_arr[0])):
+                    #if (i,j) in ck:
+                        #c_arr[i][j] = WHITE
+                    #else:
+                        #c_arr[i][j] = 0
+            #skimage.external.tifffile.imsave(inFile.replace('.tif', '_c'+str(k)+'.tif'), c_arr)
         #print(Cluster.clusters, len(Cluster.clusters))
 
 
+#class Stack:
 
-prefixes = ['/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f3_normal/eye1-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-']
+def collateSlices():
+    pass
 
-#prefix = '/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-'
+
+
+#prefixes = ['/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
+#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
+#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
+#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
+#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f3_normal/eye1-',
+#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
+#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
+#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-']
+
+prefix = '/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-'
 
 def parallel(prefix):
-    x = 1
+
+    #make a stack object somewhere
+    x = 24
     while True:
         try:
             process_image(prefix + str(x).rjust(4, '0') + '.tif')
@@ -351,11 +420,11 @@ def parallel(prefix):
         else:
             print(prefix)
             x += 1
+            break
 
-
-with Pool(5) as p:
-   p.map(parallel, prefixes)
-#parallel(prefix)
+#with Pool(5) as p:
+#   p.map(parallel, prefixes)
+parallel(prefix)
 
 
 
