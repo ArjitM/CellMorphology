@@ -289,41 +289,31 @@ class Cell(Cluster):
 
 def makeClusters(binary, boundary):
     
-    def bckwdsGen(sequence, rowNum):
-        k = -1
-        try:
-            while sequence[k][0] >= rowNum - 1: #last two rows only
-                yield sequence[k]
-                k-=1
-        except IndexError:
-            pass
-
-    
     if len(boundary) == 0:
         return
     boundary.sort() #should be sorted but double-checking; sort by i then j
-    clusterBounds = [ [ boundary[0] ] ] #add open/close vars for efficiency
+    clusterBounds = []
 
-    for bi in range(1, len(boundary)):
-        b = boundary[bi]
-        inCluster = False
-        
-        for ci in range(len(clusterBounds)):
-            c = clusterBounds[ci]
 
-            for s in bckwdsGen(c, b[0]):
-                print(b, s)
-                if abs(max(b[0]-s[0], b[1]-s[1], key=abs)) == 1: #if neighbors, alternative approach for efficiency
-                    c.append(b)
-                    inCluster = True
-                    print("added to existing cluster***")
-                    break
-            if inCluster:
+    while boundary:
+
+        clusterBounds.append([boundary[0]])
+        pivot = boundary.pop(0)
+        current = clusterBounds[-1] #last cluster element
+
+        while True:
+            point = current[-1]
+            neighbor_points = filter(lambda x: (x[0], x[1]) in getNeighborIndices(binary, point[0], point[1]), boundary)
+            try:
+                neighbor = next(neighbor_points)
+            except StopIteration:
                 break
+            else:
+                current.append(neighbor)
+                boundary.remove(neighbor)
 
-        #if not inCluster:
-        #    print("created new cluster%%%%%%%")
-        #    clusterBounds.append([b])
+        if len(current) < 12:
+            clusterBounds.remove(current)
 
     clusters = []
     for c in clusterBounds:
@@ -377,16 +367,16 @@ def process_image(inFile):
         print(len(clusters))
         print(clusters)
         
-        #for k in range(100):
-            #ck = [(c[0], c[1]) for c in clusters[k]]
-            #c_arr = out_array[:]
-            #for i in range(len(c_arr)):
-                #for j in range(len(c_arr[0])):
-                    #if (i,j) in ck:
-                        #c_arr[i][j] = WHITE
-                    #else:
-                        #c_arr[i][j] = 0
-            #skimage.external.tifffile.imsave(inFile.replace('.tif', '_c'+str(k)+'.tif'), c_arr)
+        for k in range(100):
+            ck = [(c[0], c[1]) for c in clusters[k]]
+            c_arr = out_array[:]
+            for i in range(len(c_arr)):
+                for j in range(len(c_arr[0])):
+                    if (i,j) in ck:
+                        c_arr[i][j] = WHITE
+                    else:
+                        c_arr[i][j] = 0
+            skimage.external.tifffile.imsave(inFile.replace('.tif', '_c'+str(k)+'.tif'), c_arr)
         #print(Cluster.clusters, len(Cluster.clusters))
 
 
