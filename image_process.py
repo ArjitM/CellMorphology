@@ -242,11 +242,6 @@ class Cluster:
 
     def __init__(self, binary, boundary):
 
-        '''for c in Cluster.clusters:
-            if c.contains(pivot):
-                raise ValueError('pivot already in cluster')
-        assert type(pivot) == tuple and len(pivot) == 2, 'represent points as (i, j)'
-        '''
         self.boundary = boundary
         self.boundary2D = self.getBoundary2D()
         self.binary = binary
@@ -267,8 +262,7 @@ class Cluster:
         self.points.append(point)
 
     def kill(self):
-        #Cluster.clusters.delete(self) ??
-        pass
+        Cluster.clusters.remove(self)
 
 class Cell(Cluster):
 
@@ -294,7 +288,6 @@ def makeClusters(binary, boundary):
     boundary.sort() #should be sorted but double-checking; sort by i then j
     clusterBounds = []
 
-
     while boundary:
 
         clusterBounds.append([boundary[0]])
@@ -302,6 +295,7 @@ def makeClusters(binary, boundary):
         current = clusterBounds[-1] #last cluster element
 
         while True:
+
             if current:
                 point = current[-1]
             else:
@@ -309,8 +303,7 @@ def makeClusters(binary, boundary):
             neighbor_points = filter(lambda x: (x[0], x[1]) in getNeighborIndices(binary, point[0], point[1]), boundary)
             try:
                 neighbor = next(neighbor_points)
-            except StopIteration:
-                
+            except StopIteration:    
                 neighbors = getNeighborIndices(binary, point[0], point[1])
                 if (pivot[0], pivot[1]) not in neighbors:
                     #remove internal loops if present
@@ -321,12 +314,10 @@ def makeClusters(binary, boundary):
                             del current[k+1:]
                             break
                         k -= 1
-
                     #the point was part of the boundary where edge thickness was > 1 pixel and is therefore not a useful neighbor
                     current.pop()
 
                 else:
-                    print("Does this happen ??????????????????", len(clusterBounds))
                     break #exits outer while loop
             else:
                 current.append(neighbor)
@@ -336,13 +327,9 @@ def makeClusters(binary, boundary):
             clusterBounds.remove(current)
 
     clusters = []
-    # for c in clusterBounds:
-    #     clusters.append(Cluster(binary, c))
-    return clusterBounds
-
-
-
-
+    for c in clusterBounds:
+        clusters.append(Cluster(binary, c))
+    return clusters
 
 
 def process_image(inFile):
@@ -372,29 +359,26 @@ def process_image(inFile):
         print("***made binary")
 
         boundary = findBoundaryPoints(out_array)
-        print(boundary)
-        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-        #b = [(b[0], b[1]) for b in boundary]
 
         internalBorder(pic_array, out_array, boundary)
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinEnhanced.tif'), out_array)
 
         clusters = makeClusters(out_array, boundary)
-        print(len(clusters))
-        for c in clusters:
-            print(c)
+        # print(len(clusters))
+        # for c in clusters:
+        #     print(c)
         
-        for k in range(len(clusters)):
-            ck = [(c[0], c[1]) for c in clusters[k]]
-            c_arr = out_array[:]
-            for i in range(len(c_arr)):
-                for j in range(len(c_arr[0])):
-                    if (i,j) in ck:
-                        c_arr[i][j] = WHITE
-                    else:
-                        c_arr[i][j] = 0
-            skimage.external.tifffile.imsave(inFile.replace('.tif', '_c'+str(k)+'.tif'), c_arr)
-        #print(Cluster.clusters, len(Cluster.clusters))
+        # for k in range(len(clusters)):
+        #     ck = [(c[0], c[1]) for c in clusters[k]]
+        #     c_arr = out_array[:]
+        #     for i in range(len(c_arr)):
+        #         for j in range(len(c_arr[0])):
+        #             if (i,j) in ck:
+        #                 c_arr[i][j] = WHITE
+        #             else:
+        #                 c_arr[i][j] = 0
+        #     skimage.external.tifffile.imsave(inFile.replace('.tif', '_c'+str(k)+'.tif'), c_arr)
+        # #print(Cluster.clusters, len(Cluster.clusters))
 
 
 #class Stack:
