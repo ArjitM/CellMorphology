@@ -302,12 +302,32 @@ def makeClusters(binary, boundary):
         current = clusterBounds[-1] #last cluster element
 
         while True:
-            point = current[-1]
+            if current:
+                point = current[-1]
+            else:
+                break
             neighbor_points = filter(lambda x: (x[0], x[1]) in getNeighborIndices(binary, point[0], point[1]), boundary)
             try:
                 neighbor = next(neighbor_points)
             except StopIteration:
-                break
+                
+                neighbors = getNeighborIndices(binary, point[0], point[1])
+                if (pivot[0], pivot[1]) not in neighbors:
+                    #remove internal loops if present
+                    ##switch control back to point where inner loop intersects boundary and delete loop points
+                    k = -2
+                    while abs(k) <= len(current):
+                        if (current[k][0], current[k][1]) in neighbors:
+                            del current[k+1:]
+                            break
+                        k -= 1
+
+                    #the point was part of the boundary where edge thickness was > 1 pixel and is therefore not a useful neighbor
+                    current.pop()
+
+                else:
+                    print("Does this happen ??????????????????", len(clusterBounds))
+                    break #exits outer while loop
             else:
                 current.append(neighbor)
                 boundary.remove(neighbor)
@@ -316,8 +336,8 @@ def makeClusters(binary, boundary):
             clusterBounds.remove(current)
 
     clusters = []
-    for c in clusterBounds:
-        clusters.append(Cluster(binary, c))
+    # for c in clusterBounds:
+    #     clusters.append(Cluster(binary, c))
     return clusterBounds
 
 
@@ -339,13 +359,10 @@ def process_image(inFile):
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
         #skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeSobel.tif'), skimage.img_as_uint(skimage.filters.sobel(pic_array)))
 
-
-
         regions.setNoiseCompartments(out_array, 0.95)
 
         enhanceEdges(pic_array, out_array, regions)
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
-
 
         noise_handler = Noise(out_array, iterations=3, binary=True)
         noise_handler.reduce()
@@ -355,19 +372,19 @@ def process_image(inFile):
         print("***made binary")
 
         boundary = findBoundaryPoints(out_array)
-
-        b = [(b[0], b[1]) for b in boundary]
+        print(boundary)
+        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        #b = [(b[0], b[1]) for b in boundary]
 
         internalBorder(pic_array, out_array, boundary)
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinEnhanced.tif'), out_array)
 
-
-
         clusters = makeClusters(out_array, boundary)
         print(len(clusters))
-        print(clusters)
+        for c in clusters:
+            print(c)
         
-        for k in range(100):
+        for k in range(len(clusters)):
             ck = [(c[0], c[1]) for c in clusters[k]]
             c_arr = out_array[:]
             for i in range(len(c_arr)):
