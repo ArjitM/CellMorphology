@@ -1,4 +1,4 @@
-from multiprocessing.dummy import Pool
+from multiprocessing import Pool
 import numpy as np 
 #from __future__ import division
 
@@ -186,8 +186,6 @@ def basicEdge(pic_array, out_array, regions):
             bottom, diagonal = float(pic_array[i+1][j]), float(pic_array[i+1][j+1])
 
             ''' May require revision '''
-            # Make borders thinner! if cut change within 5 pixels ?
-            # find average color of borders and find missing border pixels ... closing may be needed thereafter
             cut = regions.getCompartment(i, j).std() / 3  # 3 basic, 5 sensitive
 
             if abs(left - right) > cut:
@@ -204,7 +202,7 @@ def basicEdge(pic_array, out_array, regions):
 def enhanceEdges(pic_array, out_array, regions):
     global borderMean
     borderMean = regions.getAvgBorder(out_array)
-    tolerance = 0.07 * WHITE # +/- 10 % of total image range
+    tolerance = 0.07 * WHITE # +/- 7 % of total image range
     for i in range(len(out_array)):
         for j in range(len(out_array[0])):
             if borderMean - tolerance <= pic_array[i][j] and borderMean + tolerance >= pic_array[i][j]:
@@ -225,16 +223,18 @@ def findBoundaryPoints(binary):
             n_touching = len(list(filter(lambda p: binary[p[0]][p[1]] == WHITE, getNeighborIndices(binary, i, j))))
             #number of neighbors that are within a potential cell
             if binary[i][j] == WHITE and n_touching != 8:
-                boundary.append((i, j, n_touching < 4)) #last argument is cusp boolean
+                boundary.append((i, j, n_touching > 5)) #last argument is cusp boolean
     return boundary
 
-def internalBorder(pic_array, out_array, boundary):
+def internalBorderTest(pic_array, out_array, boundary):
+    internalBorder = out_array[:] #pseudo-deep copy
     boundaryIndices = [(b[0], b[1]) for b in boundary] #no cusp boolean
     tolerance = 0.15 * WHITE #lenient
     for i in range(len(pic_array)):
         for j in range(len(pic_array[0])):
             if pic_array[i][j] > borderMean - tolerance and (i, j) not in boundaryIndices:
-                out_array[i][j] = 0
+                internalBorder[i][j] = 0
+    return internalBorder
 
 class Cluster:
 
@@ -242,8 +242,8 @@ class Cluster:
 
     def __init__(self, binary, boundary):
 
-        self.boundary = boundary
-        self.boundary2D = self.getBoundary2D()
+        self.boundary = boundary #DO NOT SORT THIS! Order is important
+        #self.boundary2D = self.getBoundary2D()
         self.binary = binary
         self.cells = []
 
@@ -251,15 +251,76 @@ class Cluster:
             Cluster.clusters.append(self)
 
     def getBoundary2D(self):
-        self.boundary.sort() #default key sort tuples (i, j) by i then j
-        return [list(filter(lambda p: p[0] == x, self.boundary) for x in range(self.boundary[0][0], self.boundary[-1][0] + 1))]
-
-    def propagateInternalBoundaries():
-        pass
+        sortedBound = self.boundary[:]
+        sortedBound.sort() #default key sort tuples (i, j) by i then j
+        return [list(filter(lambda p: p[0] == x, sortedBound) for x in range(sortedBound[0][0], sortedBound[-1][0] + 1))]
 
 
-    def add_Point(self, point):
-        self.points.append(point)
+    def getTrueCusps(self, segmentLen=3):
+        assert len(self.boundary) > segmentLen * 3, 'boundary is too short. consider killing cluster'
+        cusps = []
+        for point in self.boundary: #filter(lambda p: p[2], self.boundary):
+            k = self.boundary.index(point)
+            before = self.boundary[k - segmentLen]
+            try:
+                after = self.boundary[k + segmentLen]
+            except IndexError:
+                after = self.boundary[k + segmentLen - len(self.boundary)]
+
+            ldy = (point[0] - before[0]) 
+            ldx = (point[1] - before[1])
+            if ldx == 0:
+                left_deriv = 1000 if ldy > 0 else -1000
+            else:
+                left_deriv = ldy / ldx
+
+            rdy = (after[0] - point[0])
+            rdx = (after[1] - point[1])
+            if rdx == 0:
+                right_deriv = 1000 if rdy > 0 else -1000
+            else:
+                right_deriv = rdy / rdx
+
+            if right_deriv > left_deriv:
+                cusps.append(point)
+        return cusps
+
+
+    def showCusps(self):
+        cusps = self.getTrueCusps()
+        for c in cusps:
+            for n in getNeighborIndices(self.binary, c[0], c[1]):
+                self.binary[n[0]][n[1]] = WHITE // 2
+
+
+
+    def propagateInternalBoundaries(self):
+        cuspPoints = list(filter(lambda p: p[2], self.boundary))
+        if len(cuspPoints) <= 1:
+            return None
+
+        ''' find direction changes '''
+        #skip = []
+        for cp in cuspPoints:
+            # if cp in skip:
+            #     continue
+            #other = min(cuspPoints, key=lambda p: (p[0] - cp[0])**2 + (p[1] - cp[1])**2)
+            edge = []
+            boundaryIndices = [(p[0], p[1]) for p in self.boundary]
+            leader = cp
+            exclude = []
+            while (leader == cp) or (leader not in boundaryIndices):
+                edge.append(leader)
+                self.binary[leader[0]][leader[1]] = WHITE // 2
+                try:
+                    leader = max(filter(lambda p: self.binary[p[0]][p[1]]==WHITE and (p not in edge) and ((p[0], p[1]) not in exclude), getNeighborIndices(self.binary, leader[0], leader[1])), key=lambda p: self.pic[p[0]][p[1]])
+                except:
+                    break
+                finally:
+                    exclude = getNeighborIndices(self.binary, leader[0], leader[1])
+
+
+
 
     def kill(self):
         Cluster.clusters.remove(self)
@@ -287,15 +348,11 @@ def makeClusters(binary, boundary):
         return
     boundary.sort() #should be sorted but double-checking; sort by i then j
     clusterBounds = []
-
     while boundary:
-
         clusterBounds.append([boundary[0]])
         pivot = boundary.pop(0)
         current = clusterBounds[-1] #last cluster element
-
         while True:
-
             if current:
                 point = current[-1]
             else:
@@ -306,8 +363,7 @@ def makeClusters(binary, boundary):
             except StopIteration:    
                 neighbors = getNeighborIndices(binary, point[0], point[1])
                 if (pivot[0], pivot[1]) not in neighbors:
-                    #remove internal loops if present
-                    ##switch control back to point where inner loop intersects boundary and delete loop points
+                    #remove internal loops if present; switch control back to point where inner loop intersects boundary and delete loop points
                     k = -2
                     while abs(k) <= len(current):
                         if (current[k][0], current[k][1]) in neighbors:
@@ -316,16 +372,13 @@ def makeClusters(binary, boundary):
                         k -= 1
                     #the point was part of the boundary where edge thickness was > 1 pixel and is therefore not a useful neighbor
                     current.pop()
-
                 else:
                     break #exits outer while loop
             else:
                 current.append(neighbor)
                 boundary.remove(neighbor)
-
         if len(current) < 12:
             clusterBounds.remove(current)
-
     clusters = []
     for c in clusterBounds:
         clusters.append(Cluster(binary, c))
@@ -360,10 +413,20 @@ def process_image(inFile):
 
         boundary = findBoundaryPoints(out_array)
 
-        internalBorder(pic_array, out_array, boundary)
-        skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinEnhanced.tif'), out_array)
+       # test = internalBorderTest(pic_array, out_array, boundary)
+        #skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinEnhanced.tif'), test)
 
+        Cluster.pic = pic_array
         clusters = makeClusters(out_array, boundary)
+        for c in clusters:
+            try:
+                c.showCusps(5)
+            except AssertionError:
+                pass
+            #c.propagateInternalBoundaries()
+        skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
+
+
         # print(len(clusters))
         # for c in clusters:
         #     print(c)
