@@ -246,6 +246,7 @@ class Cluster:
         #self.boundary2D = self.getBoundary2D()
         self.binary = binary
         self.cells = []
+        self.pivot = (np.mean([p[0] for p in self.boundary]), np.mean([p[1] for p in self.boundary]))
 
         if not isinstance(self, Cell):
             Cluster.clusters.append(self)
@@ -260,6 +261,7 @@ class Cluster:
         #print(self.boundary)
         assert len(self.boundary) > segmentLen * 3, 'boundary is too short. consider killing cluster'
         cusps = []
+
         for point in self.boundary: #filter(lambda p: p[2], self.boundary):
             k = self.boundary.index(point)
             before = self.boundary[k - segmentLen]
@@ -269,36 +271,32 @@ class Cluster:
                 after = self.boundary[k + segmentLen - len(self.boundary)]
 
             notCusp = False
-
-            for i in range(before[0], after[0], -1 ** int(before[0] > after[0])):
-                for j in range(before[1], after[1], -1 ** int(before[1] > after[1])):
-                    if self.binary[i][j] != 0:
-                        notCusp = True
-                        print("This is not a cusp")
-                        break
-                if notCusp:
-                    break
+            midpt = (math.floor(np.mean([p[0] for p in [point, before, after]])), math.floor(np.mean([p[1] for p in [point, before, after]])))
+            if self.binary[midpt[0]][midpt[1]] != 0:
+                notCusp = True
 
             if notCusp:
                 continue
 
-            print("before ", before, " | point ", point, " | after ", after)
+            #Recall i axis is REVERSED on coordinate map
 
-            ldy = (point[0] - before[0]); ldx = (point[1] - before[1])
+            ldy = - (point[0] - before[0]); ldx = (point[1] - before[1])
             if ldx == 0:
-                left_deriv = 1000 if ldy > 0 else -1000
+                left_deriv = math.inf #1000 if ldy > 0 else -1000
             else:
                 left_deriv = ldy / ldx
 
-            rdy = (after[0] - point[0]); rdx = (after[1] - point[1])
+            rdy = - (after[0] - point[0]); rdx = (after[1] - point[1])
             if rdx == 0:
-                right_deriv = 1000 if rdy > 0 else -1000
+                right_deriv = math.inf #1000 if rdy > 0 else -1000
             else:
                 right_deriv = rdy / rdx
 
-            #Recall i axis is REVERSED on coordinate map
-            if left_deriv - right_deriv < 0:
+            angle = abs( math.atan(left_deriv) - math.atan(right_deriv) )
+
+            if angle < 0.75 * math.pi:
                 cusps.append(point)
+
         return cusps
 
 
@@ -434,31 +432,33 @@ def process_image(inFile):
 
         Cluster.pic = pic_array
         clusters = makeClusters(out_array, boundary)
+        i = -1
         for c in clusters:
+            i += 1
             try:
                 c.showCusps(7)
             except AssertionError:
-                print(c.boundary, 'AssertionError')
+                print(i, 'AssertionError')
                 pass
             #c.propagateInternalBoundaries()
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
 
 
-        # print(len(clusters))
-        # for c in clusters:
-        #     print(c)
+        print(len(clusters))
+        for c in clusters:
+            print(c)
         
-        # for k in range(len(clusters)):
-        #     ck = [(c[0], c[1]) for c in clusters[k]]
-        #     c_arr = out_array[:]
-        #     for i in range(len(c_arr)):
-        #         for j in range(len(c_arr[0])):
-        #             if (i,j) in ck:
-        #                 c_arr[i][j] = WHITE
-        #             else:
-        #                 c_arr[i][j] = 0
-        #     skimage.external.tifffile.imsave(inFile.replace('.tif', '_c'+str(k)+'.tif'), c_arr)
-        # #print(Cluster.clusters, len(Cluster.clusters))
+        for k in range(len(clusters)):
+            ck = [(c[0], c[1]) for c in clusters[k]]
+            c_arr = out_array[:]
+            for i in range(len(c_arr)):
+                for j in range(len(c_arr[0])):
+                    if (i,j) in ck:
+                        c_arr[i][j] = WHITE
+                    else:
+                        c_arr[i][j] = 0
+            skimage.external.tifffile.imsave(inFile.replace('.tif', '_c'+str(k)+'.tif'), c_arr)
+        #print(Cluster.clusters, len(Cluster.clusters))
 
 
 #class Stack:
