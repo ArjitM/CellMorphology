@@ -223,7 +223,7 @@ def findBoundaryPoints(binary):
             n_touching = len(list(filter(lambda p: binary[p[0]][p[1]] == WHITE, getNeighborIndices(binary, i, j))))
             #number of neighbors that are within a potential cell
             if binary[i][j] == WHITE and n_touching != 8:
-                boundary.append((i, j, n_touching > 5)) #last argument is cusp boolean
+                boundary.append((i, j))#, n_touching > 5)) #last argument is cusp boolean
     return boundary
 
 def internalBorderTest(pic_array, out_array, boundary):
@@ -257,6 +257,7 @@ class Cluster:
 
 
     def getTrueCusps(self, segmentLen=3):
+        #print(self.boundary)
         assert len(self.boundary) > segmentLen * 3, 'boundary is too short. consider killing cluster'
         cusps = []
         for point in self.boundary: #filter(lambda p: p[2], self.boundary):
@@ -267,27 +268,42 @@ class Cluster:
             except IndexError:
                 after = self.boundary[k + segmentLen - len(self.boundary)]
 
-            ldy = (point[0] - before[0]) 
-            ldx = (point[1] - before[1])
+            notCusp = False
+
+            for i in range(before[0], after[0], -1 ** int(before[0] > after[0])):
+                for j in range(before[1], after[1], -1 ** int(before[1] > after[1])):
+                    if self.binary[i][j] != 0:
+                        notCusp = True
+                        print("This is not a cusp")
+                        break
+                if notCusp:
+                    break
+
+            if notCusp:
+                continue
+
+            print("before ", before, " | point ", point, " | after ", after)
+
+            ldy = (point[0] - before[0]); ldx = (point[1] - before[1])
             if ldx == 0:
                 left_deriv = 1000 if ldy > 0 else -1000
             else:
                 left_deriv = ldy / ldx
 
-            rdy = (after[0] - point[0])
-            rdx = (after[1] - point[1])
+            rdy = (after[0] - point[0]); rdx = (after[1] - point[1])
             if rdx == 0:
                 right_deriv = 1000 if rdy > 0 else -1000
             else:
                 right_deriv = rdy / rdx
 
-            if right_deriv > left_deriv:
+            #Recall i axis is REVERSED on coordinate map
+            if left_deriv - right_deriv < 0:
                 cusps.append(point)
         return cusps
 
 
-    def showCusps(self):
-        cusps = self.getTrueCusps()
+    def showCusps(self, *args):
+        cusps = self.getTrueCusps(*args)
         for c in cusps:
             for n in getNeighborIndices(self.binary, c[0], c[1]):
                 self.binary[n[0]][n[1]] = WHITE // 2
@@ -420,8 +436,9 @@ def process_image(inFile):
         clusters = makeClusters(out_array, boundary)
         for c in clusters:
             try:
-                c.showCusps(5)
+                c.showCusps(7)
             except AssertionError:
+                print(c.boundary, 'AssertionError')
                 pass
             #c.propagateInternalBoundaries()
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
