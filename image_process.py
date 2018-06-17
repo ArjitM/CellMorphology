@@ -246,6 +246,7 @@ class Cluster:
         #self.boundary2D = self.getBoundary2D()
         self.binary = binary
         self.cells = []
+        self.cusps = []
         self.pivot = (np.mean([p[0] for p in self.boundary]), np.mean([p[1] for p in self.boundary]))
 
         if not isinstance(self, Cell):
@@ -297,6 +298,7 @@ class Cluster:
             if angle < 0.75 * math.pi:
                 cusps.append(point)
 
+        self.cusps = cusps
         return cusps
 
 
@@ -309,12 +311,12 @@ class Cluster:
 
 
     def propagateInternalBoundaries(self):
-        cuspPoints = list(filter(lambda p: p[2], self.boundary))
+        #cuspPoints = list(filter(lambda p: p[2], self.boundary))
+        cuspPoints = self.cusps
         if len(cuspPoints) <= 1:
             return None
 
-        ''' find direction changes '''
-        #skip = []
+        edges = []
         for cp in cuspPoints:
             # if cp in skip:
             #     continue
@@ -325,13 +327,20 @@ class Cluster:
             exclude = []
             while (leader == cp) or (leader not in boundaryIndices):
                 edge.append(leader)
-                self.binary[leader[0]][leader[1]] = WHITE // 2
+                #self.binary[leader[0]][leader[1]] = 0
                 try:
-                    leader = max(filter(lambda p: self.binary[p[0]][p[1]]==WHITE and (p not in edge) and ((p[0], p[1]) not in exclude), getNeighborIndices(self.binary, leader[0], leader[1])), key=lambda p: self.pic[p[0]][p[1]])
-                except:
+                    neighbors = getNeighborIndices(self.binary, leader[0], leader[1])
+                    options = list(filter(lambda p: self.binary[p[0]][p[1]] == WHITE and p not in exclude, neighbors))
+                    leader = max(options, key=lambda p: self.pic[p[0]][p[1]])
+                except Exception as e:
+                    print((str(e)))
                     break
                 finally:
-                    exclude = getNeighborIndices(self.binary, leader[0], leader[1])
+                    exclude = neighbors
+            edges.extend(edge)
+
+        for ep in edges:
+            self.binary[ep[0]][ep[1]] = 0
 
 
 
@@ -393,9 +402,11 @@ def makeClusters(binary, boundary):
                 boundary.remove(neighbor)
         if len(current) < 12:
             clusterBounds.remove(current)
+
     clusters = []
     for c in clusterBounds:
         clusters.append(Cluster(binary, c))
+    print("$$$$$$$$$$$$$$", len(clusterBounds))
     return clusters
 
 
@@ -427,8 +438,12 @@ def process_image(inFile):
 
         boundary = findBoundaryPoints(out_array)
 
+        bound = pic.asarray()
+        for b in boundary:
+            bound[b[0]][b[1]] = 0
+
        # test = internalBorderTest(pic_array, out_array, boundary)
-        #skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinEnhanced.tif'), test)
+        skimage.external.tifffile.imsave(inFile.replace('.tif', '_Bound.tif'), bound)
 
         Cluster.pic = pic_array
         clusters = makeClusters(out_array, boundary)
@@ -436,28 +451,30 @@ def process_image(inFile):
         for c in clusters:
             i += 1
             try:
-                c.showCusps(7)
+                #c.showCusps(7)
+                c.getTrueCusps(7)
             except AssertionError:
                 print(i, 'AssertionError')
                 pass
-            #c.propagateInternalBoundaries()
+            finally:
+                c.propagateInternalBoundaries()
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
 
 
-        print(len(clusters))
-        for c in clusters:
-            print(c)
+        # print(len(clusters))
+        # for c in clusters:
+        #     print(c)
         
-        for k in range(len(clusters)):
-            ck = [(c[0], c[1]) for c in clusters[k]]
-            c_arr = out_array[:]
-            for i in range(len(c_arr)):
-                for j in range(len(c_arr[0])):
-                    if (i,j) in ck:
-                        c_arr[i][j] = WHITE
-                    else:
-                        c_arr[i][j] = 0
-            skimage.external.tifffile.imsave(inFile.replace('.tif', '_c'+str(k)+'.tif'), c_arr)
+        # for k in range(len(clusters)):
+        #     ck = [(c[0], c[1]) for c in clusters[k].boundary]
+        #     c_arr = out_array[:]
+        #     for i in range(len(c_arr)):
+        #         for j in range(len(c_arr[0])):
+        #             if (i,j) in ck:
+        #                 c_arr[i][j] = WHITE
+        #             else:
+        #                 c_arr[i][j] = 0
+        #     skimage.external.tifffile.imsave(inFile.replace('.tif', '_c'+str(k)+'.tif'), c_arr)
         #print(Cluster.clusters, len(Cluster.clusters))
 
 
