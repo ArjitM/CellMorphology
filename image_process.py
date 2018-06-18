@@ -176,6 +176,26 @@ def getNeighborIndices(image_values, i, j):
                 neighbors.append((i+ki, j+kj))
     return neighbors
 
+def getForwardNeighbors(image, previous, point):
+    assert previous != point, "Previous point cannot be the same point"
+    delta_i = point[0] - previous[0]
+    delta_j = point[1] - previous[1]
+    not_diagonal = abs(delta_i) ^ abs(delta_j)
+    if abs(not_diagonal) >= 2:
+        print("Previous ", previous, " | Point ", point, " | Diagonal ", not_diagonal)
+        raise AssertionError("previous point must be neighbor, diagonal: ", not_diagonal)
+    
+    if not_diagonal:
+        if delta_i:
+            possible = [(point[0] + delta_i, point[1] + k) for k in [-1, 0, 1]]
+        else:
+            possible = [(point[0] + k, point[1] + delta_j) for k in [-1, 0, 1]]
+    else:
+        possible = [(point[0] + delta_i, point[1]), (point[0] + delta_i, point[1] + delta_j), (point[0], point[1] + delta_j)]
+        
+    return [p for p in possible if p[0] < len(image) and p[1] < len(image[0])]
+    
+
 
 
 def basicEdge(pic_array, out_array, regions):
@@ -318,29 +338,34 @@ class Cluster:
 
         edges = []
         for cp in cuspPoints:
-            # if cp in skip:
-            #     continue
-            #other = min(cuspPoints, key=lambda p: (p[0] - cp[0])**2 + (p[1] - cp[1])**2)
-            edge = []
-            boundaryIndices = [(p[0], p[1]) for p in self.boundary]
-            leader = cp
+            edge = [cp]
+            # and p not in self.boundary
+            leader = max( filter(lambda p: self.binary[p[0]][p[1]] == WHITE, getNeighborIndices(self.binary, cp[0], cp[1])), key=lambda p: self.pic[p[0]][p[1]])
+            previous = cp
             exclude = []
-            while (leader == cp) or (leader not in boundaryIndices):
+            while leader not in self.boundary:
                 edge.append(leader)
-                #self.binary[leader[0]][leader[1]] = 0
+                self.binary[leader[0]][leader[1]] = 0
                 try:
-                    neighbors = getNeighborIndices(self.binary, leader[0], leader[1])
-                    options = list(filter(lambda p: self.binary[p[0]][p[1]] == WHITE and p not in exclude, neighbors))
-                    leader = max(options, key=lambda p: self.pic[p[0]][p[1]])
-                except Exception as e:
-                    print((str(e)))
+                    neighbors = getForwardNeighbors(self.binary, previous, leader)
+                except AssertionError:
+                    print("Previous ", previous, " | Point ", leader)
                     break
+                else:
+                    previous = leader
+                    options = list(filter(lambda p: self.binary[p[0]][p[1]] == WHITE and p not in edge and p not in exclude, neighbors))
+                    try:
+                        leader = max(options, key=lambda p: self.pic[p[0]][p[1]])
+                    except ValueError as e:
+                        print((str(e)))
+                        exclude = neighbors
+                        break
                 finally:
                     exclude = neighbors
             edges.extend(edge)
 
-        for ep in edges:
-            self.binary[ep[0]][ep[1]] = 0
+        #for ep in edges:
+        #    self.binary[ep[0]][ep[1]] = 0
 
 
 
