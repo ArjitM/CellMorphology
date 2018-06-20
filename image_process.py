@@ -320,6 +320,24 @@ class Cluster:
 
         self.cusps = cusps
         return cusps
+        
+    def pruneCusps(self, cusps):
+        cusps = cusps[:] # pseudo-deep copy
+        arcs = []
+        while cusps:
+            seq = []
+            first = cusps.pop(0)
+            k = 0
+            while max(abs(cusps[k][0] - first[0]), abs(cusps[k][1] - first[k][1])) == 1:
+                seq.append(cusps[k])
+                k += 1
+            arcs.append(seq)
+            del cusps[:k]
+        for arc in arcs:
+            if len(arc) < 3:
+                arcs.remove(arc)
+        return arcs
+            
 
 
     def showCusps(self, *args):
@@ -343,7 +361,7 @@ class Cluster:
             leader = max( filter(lambda p: self.binary[p[0]][p[1]] == WHITE, getNeighborIndices(self.binary, cp[0], cp[1])), key=lambda p: self.pic[p[0]][p[1]])
             previous = cp
             exclude = []
-            while leader not in self.boundary:
+            while leader not in cuspPoints:#self.boundary:
                 edge.append(leader)
                 self.binary[leader[0]][leader[1]] = 0
                 try:
@@ -353,15 +371,15 @@ class Cluster:
                     break
                 else:
                     previous = leader
-                    options = list(filter(lambda p: self.binary[p[0]][p[1]] == WHITE and p not in edge and p not in exclude, neighbors))
+                    options = list(filter(lambda p: self.binary[p[0]][p[1]] == WHITE and p not in edge and p not in exclude and p not in self.boundary, neighbors))
                     try:
                         leader = max(options, key=lambda p: self.pic[p[0]][p[1]])
                     except ValueError as e:
                         print((str(e)))
                         exclude = neighbors
                         break
-                finally:
-                    exclude = neighbors
+                #finally:
+                #    exclude = neighbors
             edges.extend(edge)
 
         #for ep in edges:
