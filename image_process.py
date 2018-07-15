@@ -256,6 +256,18 @@ def internalBorderTest(pic_array, out_array, boundary):
                 internalBorder[i][j] = 0
     return internalBorder
 
+class Cusp:
+
+    def __init__(self, point, left_deriv, right_deriv, angle):
+        self.point = point
+        self.left_deriv = left_deriv
+        self.right_deriv = right_deriv
+        self.angle = angle
+
+    #def angle(self):
+    #    return abs( math.atan(self.left_deriv) - math.atan(self.right_deriv) ) #in radians!!
+
+
 class Cluster:
 
     clusters = []
@@ -291,13 +303,9 @@ class Cluster:
             except IndexError:
                 after = self.boundary[k + segmentLen - len(self.boundary)]
 
-            notCusp = False
             midpt = (math.floor(np.mean([p[0] for p in [point, before, after]])), math.floor(np.mean([p[1] for p in [point, before, after]])))
             if self.binary[midpt[0]][midpt[1]] != 0:
-                notCusp = True
-
-            if notCusp:
-                continue
+                continue #point is not a cusp
 
             #Recall i axis is REVERSED on coordinate map
 
@@ -316,27 +324,27 @@ class Cluster:
             angle = abs( math.atan(left_deriv) - math.atan(right_deriv) )
 
             if angle < 0.75 * math.pi:
-                cusps.append(point)
+                cusps.append(Cusp(point, left_deriv, right_deriv, angle))
 
         self.cusps = cusps
         return cusps
         
-    def pruneCusps(self, cusps):
-        cusps = cusps[:] # pseudo-deep copy
+    def pruneCusps(self):
+        # cusps = [c.point for c in self.cusps]
         arcs = []
-        while cusps:
+        while self.cusps:
             seq = []
-            first = cusps.pop(0)
+            first = self.cusps.pop(0)
             k = 0
-            while max(abs(cusps[k][0] - first[0]), abs(cusps[k][1] - first[k][1])) == 1:
-                seq.append(cusps[k])
+            #arc is a sequence of contiguous cusp-points
+            while k < len(self.cusps) and max(abs(self.cusps[k].point[0] - first.point[0]), abs(self.cusps[k].point[1] - first.point[1])) < 3:
+                seq.append(self.cusps[k])
                 k += 1
             arcs.append(seq)
-            del cusps[:k]
-        for arc in arcs:
-            if len(arc) < 3:
-                arcs.remove(arc)
-        return arcs
+            del self.cusps[:k]
+
+        self.arcs = [arc for arc in arcs if len(arc) > 2] #removing arcs with len < 3 DOES NOT work!
+        return self.arcs
             
 
 
@@ -350,36 +358,108 @@ class Cluster:
 
     def propagateInternalBoundaries(self):
         #cuspPoints = list(filter(lambda p: p[2], self.boundary))
-        cuspPoints = self.cusps
-        if len(cuspPoints) <= 1:
+        #cuspPoints = self.cusps
+        
+        if len(self.arcs) <= 1:
             return None
 
         edges = []
-        for cp in cuspPoints:
-            edge = [cp]
-            # and p not in self.boundary
-            leader = max( filter(lambda p: self.binary[p[0]][p[1]] == WHITE, getNeighborIndices(self.binary, cp[0], cp[1])), key=lambda p: self.pic[p[0]][p[1]])
-            previous = cp
-            exclude = []
-            while leader not in cuspPoints:#self.boundary:
-                edge.append(leader)
-                self.binary[leader[0]][leader[1]] = 0
-                try:
-                    neighbors = getForwardNeighbors(self.binary, previous, leader)
-                except AssertionError:
-                    print("Previous ", previous, " | Point ", leader)
-                    break
-                else:
-                    previous = leader
-                    options = list(filter(lambda p: self.binary[p[0]][p[1]] == WHITE and p not in edge and p not in exclude and p not in self.boundary, neighbors))
-                    try:
-                        leader = max(options, key=lambda p: self.pic[p[0]][p[1]])
-                    except ValueError as e:
-                        print((str(e)))
-                        exclude = neighbors
+        
+        print("*********Printing length of arcs*******")
+        for arc in self.arcs:
+            print(len(arc))
+        cleave_points = [ min(arc, key=lambda c: c.angle) for arc in self.arcs]
+        # these are the points where internal boundaries start/stop. Find by looking for cusp region points with the least (most constrictive angle)
+        for cp in cleave_points:
+
+            getPair = lambda p: np.mean( [math.pi - abs(p.left_deriv - cp.left_deriv), math.pi - abs(p.right_deriv - cp.right_deriv)] )
+            pair = min(cleave_points, key=getPair)
+            print("Pair", pair.point)
+
+            delta_i = cp.point[0] - pair.point[0]
+            ki = -1 if delta_i > 0 else 1
+            delta_i = abs(delta_i)
+
+            delta_j = cp.point[1] - pair.point[1]
+            kj = -1 if delta_j > 0 else 1
+            delta_j = abs(delta_j)
+
+            # to propagate boundaries from one constriction site to another, assume a simple diagonal line (m=1)
+            ## and use periodic shifts to complete the boundary
+            edge = []
+            print("Start: ", cp.point)
+
+            if delta_i > delta_j:
+
+                print("delta i > j")
+                # return None
+
+                vert_shifts = delta_i - delta_j
+                shift_period = delta_i // vert_shifts #need a shift every length period of i 
+
+                print("vertical shift period", shift_period)
+
+                x, y = cp.point[1], cp.point[0]
+                k = 0
+                while max(abs(x - pair.point[1]), abs(y - pair.point[0])) >= 1:
+
+                    print("k", k)
+                    k += 1
+                    y += ki
+                    x += kj
+                    if k % shift_period == 0:
+                        y += ki #vertical shift
+                    edge.append((y, x))
+
+                    if k > 500:
                         break
-                #finally:
-                #    exclude = neighbors
+                    print((y,x))
+
+            elif delta_j > delta_i:
+
+                print('delta j > i')
+                horiz_shifts = delta_j - delta_i
+                shift_period = delta_j // horiz_shifts #need a shift every length period of j 
+
+                print("horizontal shift period", shift_period)
+
+                x, y = cp.point[1], cp.point[0]
+                k = 0
+                while max(abs(x - pair.point[1]), abs(y - pair.point[0])) >= 1:
+
+                    print('k', k)
+                    k += 1
+                    y += ki
+                    x += kj
+                    if k % shift_period == 0:
+                        x += kj #horizontal shift
+                    edge.append((y, x))
+                    
+                    if k > 500:
+                        break
+                    print((y,x))
+            
+            else:
+
+                print("i = j")
+                x, y = cp.point[1], cp.point[0]
+                k = 0
+                while max(abs(x - pair.point[1]), abs(y - pair.point[0])) >= 1:
+                    print('k', k)
+                    k += 1
+                    y += ki
+                    x += kj
+                    edge.append((y, x))
+
+                    if k>500:
+                        break
+                    print((y,x))
+
+            for p in edge:
+                binary[p[0]][p[1]] = 0
+
+            print("New edge done")
+
             edges.extend(edge)
 
         #for ep in edges:
@@ -500,6 +580,7 @@ def process_image(inFile):
                 print(i, 'AssertionError')
                 pass
             finally:
+                c.pruneCusps()
                 c.propagateInternalBoundaries()
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
 
@@ -537,7 +618,7 @@ def collateSlices():
 #'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
 #'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-']
 
-prefix = '/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-'
+prefix = '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-'
 
 def parallel(prefix):
 
