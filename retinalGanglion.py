@@ -228,7 +228,7 @@ def basicEdge(pic_array, out_array, regions):
 def enhanceEdges(pic_array, out_array, regions):
     global borderMean
     borderMean = regions.getAvgBorder(out_array)
-    tolerance = 0.07 * WHITE # +/- 7 % of total image range
+    tolerance = 0.085 * WHITE # +/- 7 % of total image range
 
     for i in range(len(out_array)):
         for j in range(len(out_array[0])):
@@ -299,38 +299,45 @@ class Cluster:
         return [list(filter(lambda p: p[0] == x, sortedBound) for x in range(sortedBound[0][0], sortedBound[-1][0] + 1))]
 
 
-    def getTrueCusps(self, segmentLen=3):
+    def getTrueCusps(self, segmentLen=6):
         #print(self.boundary)
         assert len(self.boundary) > segmentLen * 3, 'boundary is too short. consider killing cluster'
         cusps = []
 
         for point in self.boundary: #filter(lambda p: p[2], self.boundary):
             k = self.boundary.index(point)
-            before = self.boundary[k - segmentLen]
-            try:
-                after = self.boundary[k + segmentLen]
-            except IndexError:
-                after = self.boundary[k + segmentLen - len(self.boundary)]
 
-            midpt = (math.floor(np.mean([p[0] for p in [point, before, after]])), math.floor(np.mean([p[1] for p in [point, before, after]])))
-            if self.binary[midpt[0]][midpt[1]] != 0:
-                continue #point is not a cusp
+            angles = []
 
-            #Recall i axis is REVERSED on coordinate map
+            for segmentPoint in range(1, 1 + segmentLen):
 
-            ldy = - (point[0] - before[0]); ldx = (point[1] - before[1])
-            if ldx == 0:
-                left_deriv = math.inf #1000 if ldy > 0 else -1000
-            else:
-                left_deriv = ldy / ldx
+                before = self.boundary[k - segmentPoint]
+                try:
+                    after = self.boundary[k + segmentPoint]
+                except IndexError:
+                    after = self.boundary[k + segmentPoint - len(self.boundary)]
 
-            rdy = - (after[0] - point[0]); rdx = (after[1] - point[1])
-            if rdx == 0:
-                right_deriv = math.inf #1000 if rdy > 0 else -1000
-            else:
-                right_deriv = rdy / rdx
+                midpt = (math.floor(np.mean([p[0] for p in [point, before, after]])), math.floor(np.mean([p[1] for p in [point, before, after]])))
+                if self.binary[midpt[0]][midpt[1]] != 0:
+                    continue #point is not a cusp
 
-            angle = abs( math.atan(left_deriv) - math.atan(right_deriv) )
+                ldy = - (point[0] - before[0]); ldx = (point[1] - before[1])
+                if ldx == 0:
+                    #left_deriv = math.inf #1000 if ldy > 0 else -1000
+                    continue
+                else:
+                    left_deriv = ldy / ldx
+
+                rdy = - (after[0] - point[0]); rdx = (after[1] - point[1])
+                if rdx == 0:
+                    #right_deriv = math.inf #1000 if rdy > 0 else -1000
+                    continue
+                else:
+                    right_deriv = rdy / rdx
+
+                angles.append(abs( math.atan(left_deriv) - math.atan(right_deriv) ))
+
+            angle = np.mean(angles)
 
             if angle < 0.75 * math.pi:
                 cusps.append(Cusp(point, left_deriv, right_deriv, angle))
@@ -358,9 +365,11 @@ class Cluster:
 
 
     def showCusps(self, *args):
-        for c in self.constriction_points:
-            for n in getNeighborIndices(self.binary, c.point[0], c.point[1]):
-                self.binary[n[0]][n[1]] = WHITE // 2
+        #for c in self.constriction_points:
+        for arc in self.arcs:
+            for c in arc:
+                for n in getNeighborIndices(self.binary, c.point[0], c.point[1]):
+                    self.binary[n[0]][n[1]] = WHITE // 2
 
 
 
@@ -634,7 +643,7 @@ def process_image(inFile):
             i += 1
             try:
                 #c.showCusps(7)
-                c.getTrueCusps(4)
+                c.getTrueCusps(8)
             except AssertionError:
                 print(i, 'AssertionError')
                 pass
@@ -650,15 +659,20 @@ def process_image(inFile):
         #     print(c)
         
         c_arr = out_array[:]
+        for i in range(len(c_arr)):
+            for j in range(len(c_arr[0])):
+                c_arr[i][j] = 0
+                
         for k in range(len(clusters)):
             ck = [(c[0], c[1]) for c in clusters[k].boundary]
+
             
             for i in range(len(c_arr)):
                 for j in range(len(c_arr[0])):
                     if (i,j) in ck:
                         c_arr[i][j] = WHITE
-                    else:
-                        c_arr[i][j] = 0
+                    #else:
+                     #   c_arr[i][j] = 0
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_clusters.tif'), c_arr)
         #print(Cluster.clusters, len(Cluster.clusters))
 
