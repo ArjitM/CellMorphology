@@ -576,18 +576,42 @@ def makeClusters(binary, boundary):
                 neighbor = next(neighbor_points)
             except StopIteration:    
                 neighbors = getNeighborIndices(binary, point[0], point[1])
+
                 if (pivot[0], pivot[1]) not in neighbors:
                     #remove internal loops if present; switch control back to point where inner loop intersects boundary and delete loop points
-                    k = -2
+                    k = -2 #start with second-last point
+                    internalLoop = False
                     while abs(k) <= len(current):
                         if (current[k][0], current[k][1]) in neighbors:
                             del current[k+1:]
+                            internalLoop = True
                             break
                         k -= 1
-                    #the point was part of the boundary where edge thickness was > 1 pixel and is therefore not a useful neighbor
-                    current.pop()
+
+                    # #the point was part of the boundary where edge thickness was > 1 pixel and is therefore not a useful neighbor
+                    # if internalLoop:
+                    #     current.pop()
+
+                    if not internalLoop: #could be extended line
+                        ex_line = False
+                        k = -2 #start with second-last point
+                        while abs(k) <= len(current):
+                            fork = iter(getNeighborIndices(binary, current[k][0], current[k][1]))
+                            for n in fork: #getNeighborIndices(binary, current[k][0], current[k][1]):
+                                if n in boundary:
+                                    del current[k+1:]
+                                    current.append(n)
+                                    ex_line = True #breaking out of while loop
+                                    break
+                            if ex_line:
+                                break
+                            k -= 1
+
+                        if not ex_line: #not internal loop nor extended line
+                            print("cluster boundary incomplete")
+                            current.pop()
                 else:
-                    break #exits outer while loop
+                    break #cluster is contiguous; exits outer while loop
             else:
                 current.append(neighbor)
                 boundary.remove(neighbor)
@@ -712,7 +736,6 @@ def parallel(prefix):
 #with Pool(5) as p:
 #   p.map(parallel, prefixes)
 parallel(prefix)
-
 
 
 
