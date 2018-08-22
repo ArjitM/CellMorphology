@@ -368,8 +368,9 @@ class Cluster:
         #for c in self.constriction_points:
         for arc in self.arcs:
             for c in arc:
-                for n in getNeighborIndices(self.binary, c.point[0], c.point[1]):
-                    self.binary[n[0]][n[1]] = WHITE // 2
+                self.binary[c.point[0]][c.point[1]] = WHITE // 2
+            #for n in getNeighborIndices(self.binary, c.point[0], c.point[1]):
+                #self.binary[n[0]][n[1]] = WHITE // 2
 
 
 
@@ -384,7 +385,7 @@ class Cluster:
         edges = []
         
         cleave_points = [ min(arc, key=lambda c: c.angle) for arc in self.arcs]
-        # these are the points where internal boundaries start/stop. Find by looking for cusp region points with the least (most constrictive angle)
+        # these are the points where internal boundaries start/stop. Find by looking for cusp region points with the least (most constricted) angle
         for cp in cleave_points:
 
             self.constriction_points.append(cp)
@@ -588,10 +589,6 @@ def makeClusters(binary, boundary):
                             break
                         k -= 1
 
-                    # #the point was part of the boundary where edge thickness was > 1 pixel and is therefore not a useful neighbor
-                    # if internalLoop:
-                    #     current.pop()
-
                     if not internalLoop: #could be extended line
                         ex_line = False
                         k = -2 #start with second-last point
@@ -667,7 +664,7 @@ def process_image(inFile):
             i += 1
             try:
                 #c.showCusps(7)
-                c.getTrueCusps(8)
+                c.getTrueCusps()
             except AssertionError:
                 print(i, 'AssertionError')
                 pass
@@ -695,9 +692,9 @@ def process_image(inFile):
                 for j in range(len(c_arr[0])):
                     if (i,j) in ck:
                         c_arr[i][j] = WHITE
-                    #else:
-                     #   c_arr[i][j] = 0
-        skimage.external.tifffile.imsave(inFile.replace('.tif', '_clusters.tif'), c_arr)
+                    else:
+                        c_arr[i][j] = 0
+            skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
         #print(Cluster.clusters, len(Cluster.clusters))
 
 
