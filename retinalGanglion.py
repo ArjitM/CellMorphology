@@ -266,11 +266,12 @@ def internalBorderTest(pic_array, out_array, boundary):
 
 class Cusp:
 
-    def __init__(self, point, left_deriv, right_deriv, angle):
+    def __init__(self, point, left_deriv, right_deriv, angle, angle_trend):
         self.point = point
         self.left_deriv = left_deriv
         self.right_deriv = right_deriv
         self.angle = angle
+        self.angle_trend = angle_trend
 
     #def angle(self):
     #    return abs( math.atan(self.left_deriv) - math.atan(self.right_deriv) ) #in radians!!
@@ -337,10 +338,12 @@ class Cluster:
 
                 angles.append(abs( math.atan(left_deriv) - math.atan(right_deriv) ))
 
-            angle = np.mean(angles)
+            if angles == []:
+                continue
+            angle = np.nanmean(angles)
 
             if angle < 0.75 * math.pi:
-                cusps.append(Cusp(point, left_deriv, right_deriv, angle))
+                cusps.append(Cusp(point, left_deriv, right_deriv, angle, angles))
 
         self.cusps = cusps
         return cusps
@@ -350,11 +353,12 @@ class Cluster:
         arcs = []
         while self.cusps:
             seq = []
-            first = self.cusps.pop(0)
+            previous = self.cusps.pop(0)
             k = 0
-            #arc is a sequence of contiguous cusp-points
-            while k < len(self.cusps) and max(abs(self.cusps[k].point[0] - first.point[0]), abs(self.cusps[k].point[1] - first.point[1])) < 6:
+            #arc is a sequence of contiguous (max distance 1 pixel) cusp-points
+            while k < len(self.cusps) and max(abs(self.cusps[k].point[0] - previous.point[0]), abs(self.cusps[k].point[1] - previous.point[1])) <= 1:
                 seq.append(self.cusps[k])
+                previous = self.cusps[k]
                 k += 1
             arcs.append(seq)
             del self.cusps[:k]
@@ -369,9 +373,13 @@ class Cluster:
         for arc in self.arcs:
             for c in arc:
                 self.binary[c.point[0]][c.point[1]] = WHITE // 2
-            #for n in getNeighborIndices(self.binary, c.point[0], c.point[1]):
-                #self.binary[n[0]][n[1]] = WHITE // 2
+        for c in self.constriction_points:
+            for n in getNeighborIndices(self.binary, c.point[0], c.point[1]):
+                self.binary[n[0]][n[1]] = 0
 
+
+    def splitBentCells(self):
+        pass
 
 
     def propagateInternalBoundaries(self):
@@ -386,16 +394,22 @@ class Cluster:
         
         cleave_points = [ min(arc, key=lambda c: c.angle) for arc in self.arcs]
         # these are the points where internal boundaries start/stop. Find by looking for cusp region points with the least (most constricted) angle
+
+        completed_pairs = []
+        #boundaries that have already been made, avoid duplication
+
         for cp in cleave_points:
 
             self.constriction_points.append(cp)
             orientation = lambda p: np.mean( [math.pi - abs(math.atan(p.left_deriv) - math.atan(cp.left_deriv)), math.pi - abs(math.atan(p.right_deriv) - math.atan(cp.right_deriv))] )
             viable = filter(lambda p: orientation(p) < math.pi * 0.75, cleave_points)
+            viable_no_duplicate = filter(lambda p: (p, cp) not in completed_pairs and (cp, p) not in completed_pairs, viable)
             try:
-                pair = min(viable, key = lambda p: ( cp.point[0] - p.point[0])**2 + (cp.point[1] - p.point[1])**2 )
+                pair = min(viable_no_duplicate, key = lambda p: ( cp.point[0] - p.point[0])**2 + (cp.point[1] - p.point[1])**2 )
             except ValueError:
                 continue
-            print("Pair", pair.point)
+            #print("Pair", pair.point)
+            completed_pairs.append((pair, cp))
 
             delta_i = cp.point[0] - pair.point[0]
             ki = -1 if delta_i > 0 else 1
@@ -413,7 +427,6 @@ class Cluster:
             if delta_i > delta_j:
 
                 print("delta i > j")
-                # return None
 
                 #vert_shifts = delta_i - delta_j
                 if delta_j != 0:
@@ -546,6 +559,55 @@ class Cell(Cluster):
         super.__init__(self, binary, boundary)
         self.points = self.getPoints()
 
+    def pointWithin(self, point):
+        y = point[0]
+        x = point[1]
+        y_bounds = [p for p in self.boundary if p[1] == x]
+        x_bounds = [p for p in self.boundary if p[0] == y]
+
+        if point in y_bounds or point in x_bounds:
+            return True
+        y_bounds.sort(key = lambda b: b[0])
+        x_bounds.sort(key = lambda b: b[1])
+        
+        if point[0] < y_bounds[0][0] or point[0] > y_bounds[-1][0] or point[1] < x_bounds[0][1] or point[1] > x_bounds[-1][1]:
+            return False
+
+        y_pairs = self.get_var_pairs(y_bounds, 0)
+        x_pairs = self.get_var_pairs(x_bounds, 1)
+
+        def within_var_bounds(var_pairs, point, index):
+            #index 0 for y, 1 for x
+            for var_pair in var_pairs:
+                if point[index] >= var_pair[0][index] and point[index] <= var_pair[1][index]:
+                    return True
+            return False
+
+        return within_var_bounds(y_pairs, point, 0) and within_var_bounds(x_pairs, point, 1)
+
+    def get_var_pairs(self, var_bounds, index):
+        if len(var_bounds) <= 1:
+            return []
+        k = 0
+        var_pairs = []
+        while k < len(var_bounds) - 1:
+            interrupted = False
+            for btwn in range(var_bounds[k][index], var_bounds[k+1][index]):
+                #toggle = int(not(bool(index))) #toggle btwn 0 and 1
+                if index == 1:
+                    if self.binary[var_bounds[k][0]][btwn] == 0:
+                        interrupted = True
+                        break
+                else:
+                    if self.binary[btwn][var_bounds[k][1]] == 0:
+                        interrupted = True
+                        break
+            if not interrupted:
+                var_pairs.append([var_bounds[k], var_bounds[k+1]])
+            k += 1
+
+
+
     def getPoints(self):
         pass
 
@@ -605,7 +667,7 @@ def makeClusters(binary, boundary):
                             k -= 1
 
                         if not ex_line: #not internal loop nor extended line
-                            print("cluster boundary incomplete")
+                            #print("cluster boundary incomplete")
                             current.pop()
                 else:
                     break #cluster is contiguous; exits outer while loop
@@ -679,23 +741,23 @@ def process_image(inFile):
         # for c in clusters:
         #     print(c)
         
-        c_arr = out_array[:]
-        for i in range(len(c_arr)):
-            for j in range(len(c_arr[0])):
-                c_arr[i][j] = 0
+        # c_arr = out_array[:]
+        # for i in range(len(c_arr)):
+        #     for j in range(len(c_arr[0])):
+        #         c_arr[i][j] = 0
                 
-        for k in range(len(clusters)):
-            ck = [(c[0], c[1]) for c in clusters[k].boundary]
+        # for k in range(len(clusters)):
+        #     ck = [(c[0], c[1]) for c in clusters[k].boundary]
 
             
-            for i in range(len(c_arr)):
-                for j in range(len(c_arr[0])):
-                    if (i,j) in ck:
-                        c_arr[i][j] = WHITE
-                    else:
-                        c_arr[i][j] = 0
-            skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
-        #print(Cluster.clusters, len(Cluster.clusters))
+        #     for i in range(len(c_arr)):
+        #         for j in range(len(c_arr[0])):
+        #             if (i,j) in ck:
+        #                 c_arr[i][j] = WHITE
+        #             else:
+        #                 c_arr[i][j] = 0
+        #     skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
+        # #print(Cluster.clusters, len(Cluster.clusters))
 
 
 #class Stack:
