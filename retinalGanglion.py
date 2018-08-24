@@ -276,12 +276,19 @@ class Cusp:
     #def angle(self):
     #    return abs( math.atan(self.left_deriv) - math.atan(self.right_deriv) ) #in radians!!
 
+class Edge:
+
+    def __init__(self, edge):
+        self.start = edge.pop(0)
+        self.end = edge.pop()
+        self.internalEdge = edge
+
 
 class Cluster:
 
     clusters = []
 
-    def __init__(self, binary, boundary):
+    def __init__(self, binary, boundary, stack_slice, internalEdges=[]):
 
         self.boundary = boundary #DO NOT SORT THIS! Order is important
         #self.boundary2D = self.getBoundary2D()
@@ -290,6 +297,8 @@ class Cluster:
         self.cusps = []
         self.pivot = (np.mean([p[0] for p in self.boundary]), np.mean([p[1] for p in self.boundary]))
         self.constriction_points = []
+        self.internalEdges = internalEdges
+        self.stack_slice = stack_slice
 
         if not isinstance(self, Cell):
             Cluster.clusters.append(self)
@@ -300,7 +309,7 @@ class Cluster:
         return [list(filter(lambda p: p[0] == x, sortedBound) for x in range(sortedBound[0][0], sortedBound[-1][0] + 1))]
 
 
-    def getTrueCusps(self, segmentLen=6):
+    def getTrueCusps(self, segmentLen=8):
         #print(self.boundary)
         assert len(self.boundary) > segmentLen * 3, 'boundary is too short. consider killing cluster'
         cusps = []
@@ -310,7 +319,7 @@ class Cluster:
 
             angles = []
 
-            for segmentPoint in range(1, 1 + segmentLen):
+            for segmentPoint in range(segmentLen // 2, 1 + segmentLen):
 
                 before = self.boundary[k - segmentPoint]
                 try:
@@ -381,6 +390,13 @@ class Cluster:
     def splitBentCells(self):
         pass
 
+    @staticmethod
+    def makeCell(stack_slice, binary, cell_boundary):
+        cell = Cell(stack_slice, binary, cell_boundary)
+        #stack_slice.addCell(cell)
+        return cell
+
+        
 
     def propagateInternalBoundaries(self):
         #cuspPoints = list(filter(lambda p: p[2], self.boundary))
@@ -390,7 +406,6 @@ class Cluster:
             return None
 
         self.constriction_points = []
-        edges = []
         
         cleave_points = [ min(arc, key=lambda c: c.angle) for arc in self.arcs]
         # these are the points where internal boundaries start/stop. Find by looking for cusp region points with the least (most constricted) angle
@@ -421,7 +436,7 @@ class Cluster:
 
             # to propagate boundaries from one constriction site to another, assume a simple diagonal line (m=1)
             ## and use periodic shifts to complete the boundary
-            edge = []
+            edge = [cp.point]
             print("Start: ", cp.point)
 
             if delta_i > delta_j:
@@ -536,18 +551,44 @@ class Cluster:
                     if k>500:
                         break
                     print((y,x))
+            edge.append(pair.point)
 
             for p in edge:
                 self.binary[p[0]][p[1]] = 0
 
             print("New edge done")
 
-            edges.extend(edge)
+            self.internalEdges.append(Edge(edge))
 
         #for ep in edges:
         #    self.binary[ep[0]][ep[1]] = 0
 
+    def splitByEdges(self):
+        if self.internalEdges == []:
+            Cluster.makeCell(stack_slice, self.boundary)
+        else:
+            if internalEdges:
+                divider = internalEdges.pop()
+                start_index = self.boundary.index(divider.start)
+                end_index = self.boundary.index(divider.end)
+                toggle = (-1) ** int(start > end)
 
+                if start > end:
+                    cell_1_bound = list(reversed(divider.edge)) + self.boundary[start_index : end_index : -1] + divider.end
+                    cell_2_bound = list(reversed(divider.edge)) + self.boundary[start:] + self.boundary[:end+1]
+
+                else:
+                    cell_1_bound = list(reversed(divider.edge)) + self.boundary[start_index : end_index : 1] + divider.end
+                    cell_2_bound = list(reversed(divider.edge)) + self.boundary[end::1] + self.boundary[:start+1:1]
+
+                if isinstance(self, Cell):
+                    Cell.kill(self) 
+
+                cell_1 = Cluster.makeCell(self.stack_slice, self.binary, cell_1_bound, internalEdges)
+                cell_2 = Cluster.makeCell(self.stack_slice, self.binary, cell_2_bound, internalEdges)
+
+                cell_1.splitByEdges()
+                cell_2.splitByEdges()
 
 
     def kill(self):
@@ -555,9 +596,10 @@ class Cluster:
 
 class Cell(Cluster):
 
-    def __init__(self, binary, boundary):
-        super.__init__(self, binary, boundary)
-        self.points = self.getPoints()
+    def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
+        stack_slice.addCell(self)
+        super.__init__(self, binary, boundary, internalEdges)
+        #self.points = self.getPoints()
 
     def pointWithin(self, point):
         y = point[0]
@@ -605,6 +647,7 @@ class Cell(Cluster):
             if not interrupted:
                 var_pairs.append([var_bounds[k], var_bounds[k+1]])
             k += 1
+        return var_pairs
 
 
 
@@ -617,9 +660,12 @@ class Cell(Cluster):
     def eccentricity(self):
         pass
 
+    def kill(self):
+        self.stack_slice.removeCell(self)
 
 
-def makeClusters(binary, boundary):
+
+def makeClusters(binary, boundary, stack_slice):
     
     if len(boundary) == 0:
         return
@@ -679,12 +725,12 @@ def makeClusters(binary, boundary):
 
     clusters = []
     for c in clusterBounds:
-        clusters.append(Cluster(binary, c))
+        clusters.append(Cluster(binary, c, stack_slice))
     print("$$$$$$$$$$$$$$", len(clusterBounds))
     return clusters
 
 
-def process_image(inFile):
+def process_image(inFile, stack_slice):
 
     with skimage.external.tifffile.TiffFile(inFile) as pic:
 
@@ -720,20 +766,24 @@ def process_image(inFile):
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_Bound.tif'), bound)
 
         Cluster.pic = pic_array
-        clusters = makeClusters(out_array, boundary)
+        clusters = makeClusters(out_array, boundary, stack_slice)
+        noise_clusters = []
         i = -1
         for c in clusters:
             i += 1
             try:
                 #c.showCusps(7)
-                c.getTrueCusps()
+                c.getTrueCusps(8)
             except AssertionError:
-                print(i, 'AssertionError')
-                pass
+                noise_clusters.append(c)
             finally:
                 c.pruneCusps()
                 c.propagateInternalBoundaries()
                 c.showCusps()
+
+        for c in noise_clusters:
+            c.kill()
+
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
 
 
@@ -760,10 +810,29 @@ def process_image(inFile):
         # #print(Cluster.clusters, len(Cluster.clusters))
 
 
-#class Stack:
+class Stack_slice:
 
-def collateSlices():
-    pass
+    def __init__(self, number, cells=[]):
+        self.cells = cells
+        self.number = number
+
+    def addCell(self, cell):
+        if isinstance(cell, Cell):
+            self.cells.append(cell)
+
+    def removeCell(self, cell):
+        self.cells.remove(cell)
+
+class Stack:
+
+    def __init__(self, stack_slices=[]):
+        self.stack_slices = stack_slices
+
+    def addSlice(self, stack_slice):
+        self.stack_slices.append(stack_slice)
+
+    def collate_slices(self):
+        pass
 
 
 
@@ -780,17 +849,18 @@ prefix = '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Proj
 
 def parallel(prefix):
 
-    #make a stack object somewhere
-    x = 24
+    current_stack = Stack()
+    x = 11
     while True:
         try:
-            process_image(prefix + str(x).rjust(4, '0') + '.tif')
+            stack_slice = Stack_slice(x)
+            process_image(prefix + str(x).rjust(4, '0') + '.tif', stack_slice)
+            current_stack.addSlice(stack_slice)
         except IOError:
             break
         else:
             print(prefix)
             x += 1
-            break
 
 #with Pool(5) as p:
 #   p.map(parallel, prefixes)
