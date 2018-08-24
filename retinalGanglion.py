@@ -391,8 +391,8 @@ class Cluster:
         pass
 
     @staticmethod
-    def makeCell(stack_slice, binary, cell_boundary):
-        cell = Cell(stack_slice, binary, cell_boundary)
+    def makeCell(stack_slice, binary, cell_boundary, internalEdges):
+        cell = Cell(stack_slice, binary, cell_boundary, internalEdges)
         #stack_slice.addCell(cell)
         return cell
 
@@ -436,7 +436,8 @@ class Cluster:
 
             # to propagate boundaries from one constriction site to another, assume a simple diagonal line (m=1)
             ## and use periodic shifts to complete the boundary
-            edge = [cp.point]
+            edge = []
+            edge.append(cp.point)
             #print("Start: ", cp.point)
 
             if delta_i > delta_j:
@@ -565,30 +566,36 @@ class Cluster:
 
     def splitByEdges(self):
         if self.internalEdges == []:
-            Cluster.makeCell(self.stack_slice, self.binary, self.boundary)
+            Cluster.makeCell(self.stack_slice, self.binary, self.boundary, [])
         else:
-            if internalEdges:
-                divider = internalEdges.pop()
-                start_index = self.boundary.index(divider.start)
-                end_index = self.boundary.index(divider.end)
-                toggle = (-1) ** int(start > end)
+            if self.internalEdges:
+                divider = self.internalEdges.pop()
+                try:
+                    start_index = self.boundary.index(divider.start)
+                except ValueError: #intersecting internal edges
+                    return
+                
+                try:
+                    end_index = self.boundary.index(divider.end)
+                except ValueError:
+                    return
 
-                if start > end:
-                    cell_1_bound = list(reversed(divider.edge)) + self.boundary[start_index : end_index : -1] + divider.end
-                    cell_2_bound = list(reversed(divider.edge)) + self.boundary[start:] + self.boundary[:end+1]
+                if start_index > end_index:
+                    cell_1_bound = list(reversed(divider.internalEdge)) + self.boundary[start_index : end_index : -1] + [divider.end]
+                    cell_2_bound = list(reversed(divider.internalEdge)) + self.boundary[start_index:] + self.boundary[:end_index+1]
 
                 else:
-                    cell_1_bound = list(reversed(divider.edge)) + self.boundary[start_index : end_index : 1] + divider.end
-                    cell_2_bound = list(reversed(divider.edge)) + self.boundary[end::1] + self.boundary[:start+1:1]
+                    cell_1_bound = list(reversed(divider.internalEdge)) + self.boundary[start_index : end_index : 1] + [divider.end]
+                    cell_2_bound = list(reversed(divider.internalEdge)) + self.boundary[end_index::1] + self.boundary[:start_index+1:1]
 
-                if isinstance(self, Cell):
-                    Cell.kill(self) 
-
-                cell_1 = Cluster.makeCell(self.stack_slice, self.binary, cell_1_bound, internalEdges)
-                cell_2 = Cluster.makeCell(self.stack_slice, self.binary, cell_2_bound, internalEdges)
+                cell_1 = Cluster.makeCell(self.stack_slice, self.binary, cell_1_bound, self.internalEdges)
+                cell_2 = Cluster.makeCell(self.stack_slice, self.binary, cell_2_bound, self.internalEdges)
 
                 cell_1.splitByEdges()
                 cell_2.splitByEdges()
+
+                if isinstance(self, Cell):
+                    Cell.kill(self) 
 
 
     def kill(self):
@@ -597,10 +604,9 @@ class Cluster:
 class Cell(Cluster):
 
     def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
-        print("Cell contructor!")
         stack_slice.addCell(self)
-        super().__init__(binary, boundary, internalEdges)
-        #self.points = self.getPoints()
+        super().__init__(binary, boundary, stack_slice, internalEdges)
+
 
     def pointWithin(self, point):
         y = point[0]
@@ -608,6 +614,8 @@ class Cell(Cluster):
         y_bounds = [p for p in self.boundary if p[1] == x]
         x_bounds = [p for p in self.boundary if p[0] == y]
 
+        if y_bounds == [] or x_bounds == []:
+            return False
         if point in y_bounds or point in x_bounds:
             return True
         y_bounds.sort(key = lambda b: b[0])
@@ -795,6 +803,7 @@ def process_image(inFile, stack_slice):
             c.kill()
 
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
+        return out_array
 
 
         # print(len(clusters))
@@ -828,7 +837,6 @@ class Stack_slice:
 
     def addCell(self, cell):
         if isinstance(cell, Cell):
-            print("Cell has been added!!")
             self.cells.append(cell)
         else:
             print("not a cell instance")
@@ -866,7 +874,7 @@ class Stack:
                         self.large_Cells.remove(lr)
 
                 elif hits == 1:
-                    self.large_Cells.remove(large_replace)
+                    self.large_Cells.remove(large_replace[0])
                     self.large_Cells.append(cell)
 
                 else:
@@ -900,11 +908,12 @@ prefix = '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Proj
 def parallel(prefix):
 
     current_stack = Stack()
-    x = 20
+    x = 23
+    out_array = []
     while True:
         try:
             stack_slice = Stack_slice(x)
-            process_image(prefix + str(x).rjust(4, '0') + '.tif', stack_slice)
+            out_array = process_image(prefix + str(x).rjust(4, '0') + '.tif', stack_slice)
             print("This slice has __ cells : ", len(stack_slice.cells))
             current_stack.addSlice(stack_slice)
         except IOError:
@@ -915,10 +924,26 @@ def parallel(prefix):
             if x > 24:
                 break
     current_stack.collate_slices()
+
+    for i in range(len(out_array)):
+        for j in range(len(out_array[0])):
+            out_array[i][j] = 0
     x = 1
+
     print("LARGEST CELLS ARE")
     for c in current_stack.largest_Cells:
+        x+=1
         print("Cell ", x, " ", c.stack_slice.number)
+        for b in c.boundary:
+            out_array[b[0]][b[1]] = WHITE
+    
+    skimage.external.tifffile.imsave(prefix + 'largest.tif', out_array)
+
+
+
+
+
+
 
 #with Pool(5) as p:
 #   p.map(parallel, prefixes)
