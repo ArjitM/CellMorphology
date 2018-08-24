@@ -60,7 +60,7 @@ class Compartment:
             return np.mean(border)
 
         self.hasBorder = False
-        print(self.str())
+        #print(self.str())
         return None
 
 
@@ -437,11 +437,11 @@ class Cluster:
             # to propagate boundaries from one constriction site to another, assume a simple diagonal line (m=1)
             ## and use periodic shifts to complete the boundary
             edge = [cp.point]
-            print("Start: ", cp.point)
+            #print("Start: ", cp.point)
 
             if delta_i > delta_j:
 
-                print("delta i > j")
+                #print("delta i > j")
 
                 #vert_shifts = delta_i - delta_j
                 if delta_j != 0:
@@ -453,14 +453,14 @@ class Cluster:
                     shift = False
 
 
-                print("horizontal shift period", shift_period)
+                #print("horizontal shift period", shift_period)
 
                 x, y = cp.point[1], cp.point[0]
                 k = 0
                 x_rem, y_rem = math.inf, math.inf
                 while min(x_rem, y_rem) > 1:
 
-                    print("k", k)
+                    #print("k", k)
                     k += 1
                     y += ki
                     
@@ -470,7 +470,7 @@ class Cluster:
 
                     if k > 500:
                         break
-                    print((y,x))
+                    #print((y,x))
 
                     x_rem = abs(x - pair.point[1])
                     y_rem = abs(y - pair.point[0])
@@ -480,18 +480,18 @@ class Cluster:
                 if x_rem > 1:
                     for rem in range(x, pair.point[1], kj):
                         edge.append((y, rem))
-                        print((y, rem))
+                        #print((y, rem))
 
                 else:
                     for rem in range(y, pair.point[0], ki):
                         edge.append((rem, x))
-                        print((rem, x))
+                        #print((rem, x))
 
                 
 
             elif delta_j > delta_i:
 
-                print('delta j > i')
+                #print('delta j > i')
                 #horiz_shifts = delta_j - delta_i
 
                 if delta_i != 0:
@@ -502,14 +502,14 @@ class Cluster:
                     shift_period = 100
                     shift = False
 
-                print("vertical shift period", shift_period)
+                #print("vertical shift period", shift_period)
 
                 x, y = cp.point[1], cp.point[0]
                 k = 0
                 x_rem, y_rem = math.inf, math.inf
                 while min(x_rem, y_rem) > 1:
 
-                    print('k', k)
+                    #print('k', k)
                     k += 1
                     x += kj
 
@@ -519,7 +519,7 @@ class Cluster:
                     
                     if k > 500:
                         break
-                    print((y,x))
+                    #print((y,x))
 
                     x_rem = abs(x - pair.point[1])
                     y_rem = abs(y - pair.point[0])
@@ -529,20 +529,20 @@ class Cluster:
                 if x_rem > 1:
                     for rem in range(x, pair.point[1], kj):
                         edge.append((y, rem))
-                        print((y, rem))
+                        #print((y, rem))
 
                 else:
                     for rem in range(y, pair.point[0], ki):
                         edge.append((rem, x))
-                        print((rem, x))
+                        #print((rem, x))
             
             else:
 
-                print("i = j")
+                #print("i = j")
                 x, y = cp.point[1], cp.point[0]
                 k = 0
                 while min(abs(x - pair.point[1]), abs(y - pair.point[0])) > 1:
-                    print('k', k)
+                    #print('k', k)
                     k += 1
                     y += ki
                     x += kj
@@ -550,13 +550,13 @@ class Cluster:
 
                     if k>500:
                         break
-                    print((y,x))
+                    #print((y,x))
             edge.append(pair.point)
 
             for p in edge:
                 self.binary[p[0]][p[1]] = 0
 
-            print("New edge done")
+            #print("New edge done")
 
             self.internalEdges.append(Edge(edge))
 
@@ -565,7 +565,7 @@ class Cluster:
 
     def splitByEdges(self):
         if self.internalEdges == []:
-            Cluster.makeCell(stack_slice, self.boundary)
+            Cluster.makeCell(self.stack_slice, self.binary, self.boundary)
         else:
             if internalEdges:
                 divider = internalEdges.pop()
@@ -597,8 +597,9 @@ class Cluster:
 class Cell(Cluster):
 
     def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
+        print("Cell contructor!")
         stack_slice.addCell(self)
-        super.__init__(self, binary, boundary, internalEdges)
+        super().__init__(binary, boundary, internalEdges)
         #self.points = self.getPoints()
 
     def pointWithin(self, point):
@@ -648,6 +649,14 @@ class Cell(Cluster):
                 var_pairs.append([var_bounds[k], var_bounds[k+1]])
             k += 1
         return var_pairs
+
+    def contains(self, other_cell):
+        k = len(other_cell.boundary) // 8
+        hits = 0
+        for i in range(8):
+            if self.pointWithin(other_cell.boundary[k * i]):
+                hits += 1
+        return hits >= 6
 
 
 
@@ -780,6 +789,7 @@ def process_image(inFile, stack_slice):
                 c.pruneCusps()
                 c.propagateInternalBoundaries()
                 c.showCusps()
+                c.splitByEdges()
 
         for c in noise_clusters:
             c.kill()
@@ -818,7 +828,10 @@ class Stack_slice:
 
     def addCell(self, cell):
         if isinstance(cell, Cell):
+            print("Cell has been added!!")
             self.cells.append(cell)
+        else:
+            print("not a cell instance")
 
     def removeCell(self, cell):
         self.cells.remove(cell)
@@ -827,12 +840,49 @@ class Stack:
 
     def __init__(self, stack_slices=[]):
         self.stack_slices = stack_slices
+        self.large_Cells = []
+        self.largest_Cells = []
 
     def addSlice(self, stack_slice):
         self.stack_slices.append(stack_slice)
 
     def collate_slices(self):
-        pass
+        for stack_slice in self.stack_slices:
+
+            for cell in stack_slice.cells:
+                hits = 0
+                large_replace = []
+
+                for large_Cell in self.large_Cells:
+                    if cell.contains(large_Cell):
+                        large_replace.append(large_Cell)
+                        hits += 1
+                    if hits > 1:
+                        break
+
+                if hits > 1: #limit reached
+                    self.largest_Cells.extend(large_replace)
+                    for lr in large_replace:
+                        self.large_Cells.remove(lr)
+
+                elif hits == 1:
+                    self.large_Cells.remove(large_replace)
+                    self.large_Cells.append(cell)
+
+                else:
+                    new_cell = True
+                    for large_Cell in self.large_Cells:
+                        if large_Cell.contains(cell):
+                            new_cell = False
+                            break
+                    if new_cell:
+                        self.large_Cells.append(cell)
+
+        self.largest_Cells.extend(self.large_Cells)
+
+
+
+                        
 
 
 
@@ -850,17 +900,25 @@ prefix = '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Proj
 def parallel(prefix):
 
     current_stack = Stack()
-    x = 11
+    x = 20
     while True:
         try:
             stack_slice = Stack_slice(x)
             process_image(prefix + str(x).rjust(4, '0') + '.tif', stack_slice)
+            print("This slice has __ cells : ", len(stack_slice.cells))
             current_stack.addSlice(stack_slice)
         except IOError:
             break
         else:
             print(prefix)
             x += 1
+            if x > 24:
+                break
+    current_stack.collate_slices()
+    x = 1
+    print("LARGEST CELLS ARE")
+    for c in current_stack.largest_Cells:
+        print("Cell ", x, " ", c.stack_slice.number)
 
 #with Pool(5) as p:
 #   p.map(parallel, prefixes)
