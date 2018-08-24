@@ -664,7 +664,7 @@ class Cell(Cluster):
         for i in range(8):
             if self.pointWithin(other_cell.boundary[k * i]):
                 hits += 1
-        return hits >= 6
+        return hits >= 4
 
 
 
@@ -674,7 +674,7 @@ class Cell(Cluster):
     def area(self):
         pass
 
-    def eccentricity(self):
+    def roundness(self):
         pass
 
     def kill(self):
@@ -834,6 +834,7 @@ class Stack_slice:
     def __init__(self, number, cells=[]):
         self.cells = cells
         self.number = number
+        self.finalizedCellSlice = Stack_slice_largest(number, [])
 
     def addCell(self, cell):
         if isinstance(cell, Cell):
@@ -843,6 +844,13 @@ class Stack_slice:
 
     def removeCell(self, cell):
         self.cells.remove(cell)
+
+class Stack_slice_largest(Stack_slice):
+
+    def __init__(self, number, cells):
+        self.cells = cells
+        self.number = number
+
 
 class Stack:
 
@@ -870,8 +878,8 @@ class Stack:
 
                 if hits > 1: #limit reached
                     self.largest_Cells.extend(large_replace)
-                    for lr in large_replace:
-                        self.large_Cells.remove(lr)
+                    # for lr in large_replace:
+                    #     self.large_Cells.remove(lr)
 
                 elif hits == 1:
                     self.large_Cells.remove(large_replace[0])
@@ -886,7 +894,10 @@ class Stack:
                     if new_cell:
                         self.large_Cells.append(cell)
 
-        self.largest_Cells.extend(self.large_Cells)
+        for lg in self.large_Cells:
+            lg.stack_slice.finalizedCellSlice.addCell(lg)
+
+        #self.largest_Cells.extend(self.large_Cells)
 
 
 
@@ -908,7 +919,7 @@ prefix = '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Proj
 def parallel(prefix):
 
     current_stack = Stack()
-    x = 23
+    x = 20
     out_array = []
     while True:
         try:
@@ -925,19 +936,28 @@ def parallel(prefix):
                 break
     current_stack.collate_slices()
 
-    for i in range(len(out_array)):
-        for j in range(len(out_array[0])):
-            out_array[i][j] = 0
+    out_array.fill(0)
     x = 1
 
     print("LARGEST CELLS ARE")
-    for c in current_stack.largest_Cells:
+    for c in current_stack.large_Cells:
         x+=1
         print("Cell ", x, " ", c.stack_slice.number)
         for b in c.boundary:
             out_array[b[0]][b[1]] = WHITE
     
     skimage.external.tifffile.imsave(prefix + 'largest.tif', out_array)
+
+    for ss in current_stack.stack_slices:
+        out_array.fill(0)
+
+        for c in ss.finalizedCellSlice.cells:
+
+            for b in c.boundary:
+
+                out_array[b[0]][b[1]] = WHITE
+
+        skimage.external.tifffile.imsave(prefix + str(ss.number) + 'largest.tif', out_array)
 
 
 
