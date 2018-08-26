@@ -389,7 +389,6 @@ class Cluster:
     @staticmethod
     def makeCell(stack_slice, binary, cell_boundary, internalEdges):
         cell = Cell(stack_slice, binary, cell_boundary, internalEdges)
-        #stack_slice.addCell(cell)
         return cell
 
         
@@ -562,7 +561,8 @@ class Cluster:
 
     def splitByEdges(self):
         if self.internalEdges == []:
-            Cluster.makeCell(self.stack_slice, self.binary, self.boundary, [])
+            newCell = Cluster.makeCell(self.stack_slice, self.binary, self.boundary, [])
+            self.stack_slice.addCell(newCell)
         else:
             if self.internalEdges:
                 divider = self.internalEdges.pop()
@@ -590,8 +590,8 @@ class Cluster:
                 cell_1.splitByEdges()
                 cell_2.splitByEdges()
 
-                if isinstance(self, Cell):
-                    Cell.kill(self) 
+                #if isinstance(self, Cell):
+                #    Cell.kill(self) 
 
 
     def kill(self):
@@ -601,8 +601,9 @@ class Cell(Cluster):
 
     def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
         super().__init__(binary, boundary, stack_slice, internalEdges)
-        stack_slice.addCell(self)
-        self.area = None
+        #stack_slice.addCell(self)
+        if not self.internalEdges:
+            self.area = self.area()
 
 
     def pointWithin(self, point):
@@ -708,6 +709,7 @@ class Cell(Cluster):
 
 def makeClusters(binary, boundary, stack_slice):
     
+    Cluster.clusters = []
     if len(boundary) == 0:
         return
     boundary.sort() #should be sorted but double-checking; sort by i then j
@@ -856,7 +858,7 @@ def process_image(inFile, stack_slice):
 
 class Stack_slice:
 
-    def __init__(self, number, cells=[]):
+    def __init__(self, number, cells):
         self.cells = cells
         self.number = number
         self.finalizedCellSlice = Stack_slice_largest(number, [])
@@ -864,7 +866,6 @@ class Stack_slice:
     def addCell(self, cell):
         if isinstance(cell, Cell):
             self.cells.append(cell)
-            cell.area = cell.area()
         else:
             print("not a cell instance")
 
@@ -908,7 +909,7 @@ class Stack:
                     large_replace = None
 
                 elif hits == 1:
-                    self.large_Cells.remove(large_replace[0])
+                    self.large_Cells.remove(large_replace)
                     self.large_Cells.append(cell)
 
                 else:
@@ -939,36 +940,35 @@ class Stack:
 
 
 
-#prefixes = ['/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
-#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
-#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
-#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
-#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f3_normal/eye1-',
-#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
-#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
-#'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-']
+prefixes = ['/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f3_normal/eye1-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
+'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-']
 
-prefix = '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-'
+#prefix = '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-'
 
 def parallel(prefix):
 
     current_stack = Stack()
-    x = 11
+    x = 1
     out_array = []
     while True:
         try:
-            stack_slice = Stack_slice(x)
+            stack_slice = Stack_slice(x, cells=[])
             out_array = process_image(prefix + str(x).rjust(4, '0') + '.tif', stack_slice)
             stack_slice.pruneCells()
-            print("This slice has __ cells : ", len(stack_slice.cells))
+            print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
             current_stack.addSlice(stack_slice)
+
         except IOError:
             break
         else:
             print(prefix)
             x += 1
-            if x > 38:
-                break
     current_stack.collate_slices()
 
     out_array.fill(0)
@@ -979,7 +979,7 @@ def parallel(prefix):
     outFile.write("LARGEST CELLS ARE \n")
     for c in current_stack.large_Cells:
         x+=1
-        outFile.write("Cell "+ str(x) + ", Slice # " + c.stack_slice.number + ' , Area: '+ str(c.area) + '\n')
+        outFile.write("Cell {0}, Slice # {1}, Area: {2}\n".format(x, c.stack_slice.number, c.area))
         for b in c.boundary:
             out_array[b[0]][b[1]] = WHITE
     
@@ -1001,9 +1001,9 @@ def parallel(prefix):
 
 
 
-#with Pool(5) as p:
-#   p.map(parallel, prefixes)
-parallel(prefix)
+with Pool(2) as p:
+   p.map(parallel, prefixes)
+#parallel(prefix)
 
 
 
