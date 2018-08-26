@@ -118,12 +118,15 @@ class Compartmentalize:
             for n in c.neighbors:
                 if n.noise_compartment:
                     hits += 1
-            if hits > len(c.neighbors) / 2:
+            if hits > (len(c.neighbors) // 2):
                 c.set_noise_compartment(True)
+            else:
+                c.set_noise_compartment(False)
 
     def getAvgBorder(self, binary):
         not_Noise = filter(lambda c: not bool(c.noise_compartment), self.compartments)      
-        return np.mean([c.avgBorder(binary) for c in not_Noise if c.hasBorder])
+        avgs = [c.avgBorder(binary) for c in not_Noise if c.hasBorder]
+        return np.nanmean([a for a in avgs if a])
 
 
     def getAvgBorders(self, binary):
@@ -213,6 +216,7 @@ def basicEdge(pic_array, out_array, regions):
 
             ''' May require revision '''
             cut = regions.getCompartment(i, j).std() / 3  # 3 basic, 5 sensitive
+            #cut = np.std(out_array) // 3
 
             if abs(left - right) > cut:
                 out_array[i][j] = 0
@@ -240,7 +244,7 @@ def enhanceEdges(pic_array, out_array, regions):
             elif pic_array[i][j] < local_border_avg and regions.getCompartment(i, j).noise_compartment == False:
                 out_array[i][j] = WHITE
             #if regions.getCompartment(i, j).noise_compartment == True:
-            #   out_array[i][j] = WHITE // 2
+               #out_array[i][j] = WHITE // 2
 
 
 
@@ -270,7 +274,7 @@ class Cusp:
         self.point = point
         self.left_deriv = left_deriv
         self.right_deriv = right_deriv
-        self.angle = angle
+        self.angle = abs(angle)
         self.angle_trend = angle_trend
 
     #def angle(self):
@@ -302,12 +306,6 @@ class Cluster:
 
         if not isinstance(self, Cell):
             Cluster.clusters.append(self)
-
-    def getBoundary2D(self):
-        sortedBound = self.boundary[:]
-        sortedBound.sort() #default key sort tuples (i, j) by i then j
-        return [list(filter(lambda p: p[0] == x, sortedBound) for x in range(sortedBound[0][0], sortedBound[-1][0] + 1))]
-
 
     def getTrueCusps(self, segmentLen=8):
         #print(self.boundary)
@@ -374,8 +372,6 @@ class Cluster:
 
         self.arcs = [arc for arc in arcs if len(arc) > 2] #removing arcs with len < 3 DOES NOT work!
         return self.arcs
-            
-
 
     def showCusps(self, *args):
         #for c in self.constriction_points:
@@ -420,7 +416,7 @@ class Cluster:
             viable = filter(lambda p: orientation(p) < math.pi * 0.75, cleave_points)
             viable_no_duplicate = filter(lambda p: (p, cp) not in completed_pairs and (cp, p) not in completed_pairs, viable)
             try:
-                pair = min(viable_no_duplicate, key = lambda p: ( cp.point[0] - p.point[0])**2 + (cp.point[1] - p.point[1])**2 )
+                pair = min(viable_no_duplicate, key = lambda p: (cp.point[0] - p.point[0])**2 + (cp.point[1] - p.point[1])**2 )
             except ValueError:
                 continue
             #print("Pair", pair.point)
@@ -604,8 +600,9 @@ class Cluster:
 class Cell(Cluster):
 
     def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
-        stack_slice.addCell(self)
         super().__init__(binary, boundary, stack_slice, internalEdges)
+        stack_slice.addCell(self)
+        self.area = None
 
 
     def pointWithin(self, point):
@@ -636,6 +633,12 @@ class Cell(Cluster):
 
         return within_var_bounds(y_pairs, point, 0) and within_var_bounds(x_pairs, point, 1)
 
+
+    def getBoundary2D(self):
+        sortedBound = self.boundary[:]
+        sortedBound.sort() #default key sort tuples (i, j) by i then j
+        return [ list(filter(lambda p: p[0] == y, sortedBound)) for y in range(sortedBound[0][0], sortedBound[-1][0] + 1)]
+
     def get_var_pairs(self, var_bounds, index):
         if len(var_bounds) <= 1:
             return []
@@ -658,24 +661,45 @@ class Cell(Cluster):
             k += 1
         return var_pairs
 
-    def contains(self, other_cell):
+    def contains_or_overlaps(self, other_cell):
         k = len(other_cell.boundary) // 8
         hits = 0
         for i in range(8):
             if self.pointWithin(other_cell.boundary[k * i]):
                 hits += 1
-        return hits >= 4
+        return hits >= 4, hits >= 1
 
-
-
-    def getPoints(self):
-        pass
 
     def area(self):
-        pass
+        bounds = self.getBoundary2D()
+        area = 0
+        for b in bounds:
+            x_pairs = self.get_var_pairs(b, 1)
+            if x_pairs == []:
+                area += 1
+            else:
+                for xp in x_pairs:
+                    area += (xp[1][1] - xp[0][1] + 1)
+        return area
+
 
     def roundness(self):
-        pass
+        circum = len(self.boundary)
+        ideal = circum / math.pi
+        opposing = [[0,4], [1,5], [2,6], [3,7]]
+        diameters = []
+
+        def distance(p1, p2):
+            d = math.sqrt( (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+            return math.floor(d)
+
+        for op in opposing:
+            diameters.append(distance(self.boundary[op[0]], self.boundary[op[1]]))
+
+        avgDiameter = np.mean(diameters)
+        return 1 - (abs(avgDiameter - ideal) / ideal)
+
+
 
     def kill(self):
         self.stack_slice.removeCell(self)
@@ -689,9 +713,10 @@ def makeClusters(binary, boundary, stack_slice):
     boundary.sort() #should be sorted but double-checking; sort by i then j
     clusterBounds = []
     while boundary:
-        clusterBounds.append([boundary[0]])
+        #clusterBounds.append([boundary[0]])
+        current = [boundary[0]]
         pivot = boundary.pop(0)
-        current = clusterBounds[-1] #last cluster element
+        #current = clusterBounds[-1] #last cluster element
         while True:
             if current:
                 point = current[-1]
@@ -737,8 +762,8 @@ def makeClusters(binary, boundary, stack_slice):
             else:
                 current.append(neighbor)
                 boundary.remove(neighbor)
-        if len(current) < 12:
-            clusterBounds.remove(current)
+        if len(current) > 12:
+            clusterBounds.append(current)
 
     clusters = []
     for c in clusterBounds:
@@ -839,11 +864,15 @@ class Stack_slice:
     def addCell(self, cell):
         if isinstance(cell, Cell):
             self.cells.append(cell)
+            cell.area = cell.area()
         else:
             print("not a cell instance")
 
     def removeCell(self, cell):
         self.cells.remove(cell)
+
+    def pruneCells(self, roundness_thresh=0.1):
+        self.cells = [c for c in self.cells if c.roundness() > roundness_thresh]
 
 class Stack_slice_largest(Stack_slice):
 
@@ -857,7 +886,6 @@ class Stack:
     def __init__(self, stack_slices=[]):
         self.stack_slices = stack_slices
         self.large_Cells = []
-        self.largest_Cells = []
 
     def addSlice(self, stack_slice):
         self.stack_slices.append(stack_slice)
@@ -867,19 +895,17 @@ class Stack:
 
             for cell in stack_slice.cells:
                 hits = 0
-                large_replace = []
+                large_replace = None
 
                 for large_Cell in self.large_Cells:
-                    if cell.contains(large_Cell):
-                        large_replace.append(large_Cell)
+                    if cell.contains_or_overlaps(large_Cell)[0]:
+                        large_replace = large_Cell
                         hits += 1
                     if hits > 1:
                         break
 
                 if hits > 1: #limit reached
-                    self.largest_Cells.extend(large_replace)
-                    # for lr in large_replace:
-                    #     self.large_Cells.remove(lr)
+                    large_replace = None
 
                 elif hits == 1:
                     self.large_Cells.remove(large_replace[0])
@@ -888,11 +914,19 @@ class Stack:
                 else:
                     new_cell = True
                     for large_Cell in self.large_Cells:
-                        if large_Cell.contains(cell):
+                        containedOrOverlapping = large_Cell.contains_or_overlaps(cell)
+                        if containedOrOverlapping[0]: #contained
                             new_cell = False
                             break
+                        if containedOrOverlapping[1]: #overlapping
+                            if large_Cell.area > cell.area:
+                                new_cell = False
+                            else:
+                                large_replace = large_Cell
                     if new_cell:
                         self.large_Cells.append(cell)
+                    if large_replace:
+                        self.large_Cells.remove(large_replace)
 
         for lg in self.large_Cells:
             lg.stack_slice.finalizedCellSlice.addCell(lg)
@@ -919,12 +953,13 @@ prefix = '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Proj
 def parallel(prefix):
 
     current_stack = Stack()
-    x = 20
+    x = 11
     out_array = []
     while True:
         try:
             stack_slice = Stack_slice(x)
             out_array = process_image(prefix + str(x).rjust(4, '0') + '.tif', stack_slice)
+            stack_slice.pruneCells()
             print("This slice has __ cells : ", len(stack_slice.cells))
             current_stack.addSlice(stack_slice)
         except IOError:
@@ -932,17 +967,19 @@ def parallel(prefix):
         else:
             print(prefix)
             x += 1
-            if x > 24:
+            if x > 38:
                 break
     current_stack.collate_slices()
 
     out_array.fill(0)
     x = 1
 
-    print("LARGEST CELLS ARE")
+    outFile = open(prefix + 'Cell Sizes.csv', 'w')
+
+    outFile.write("LARGEST CELLS ARE \n")
     for c in current_stack.large_Cells:
         x+=1
-        print("Cell ", x, " ", c.stack_slice.number)
+        outFile.write("Cell "+ str(x) + ", Slice # " + c.stack_slice.number + ' , Area: '+ str(c.area) + '\n')
         for b in c.boundary:
             out_array[b[0]][b[1]] = WHITE
     
@@ -957,8 +994,7 @@ def parallel(prefix):
 
                 out_array[b[0]][b[1]] = WHITE
 
-        skimage.external.tifffile.imsave(prefix + str(ss.number) + 'largest.tif', out_array)
-
+        skimage.external.tifffile.imsave(prefix + 'largest.tif' + str(ss.number) , out_array)
 
 
 
