@@ -997,10 +997,6 @@ def parallel(prefix):
         skimage.external.tifffile.imsave(prefix + 'largest.tif' + str(ss.number) , out_array)
 
 
-
-
-
-
 with Pool(2) as p:
    p.map(parallel, prefixes)
 #parallel(prefix)
