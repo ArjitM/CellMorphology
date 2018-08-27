@@ -316,34 +316,39 @@ class Cluster:
             k = self.boundary.index(point)
 
             angles = []
+            notCusp = False
 
             for segmentPoint in range(segmentLen // 2, 1 + segmentLen):
-
+                
                 before = self.boundary[k - segmentPoint]
                 try:
                     after = self.boundary[k + segmentPoint]
                 except IndexError:
                     after = self.boundary[k + segmentPoint - len(self.boundary)]
 
-                midpt = (math.floor(np.mean([p[0] for p in [point, before, after]])), math.floor(np.mean([p[1] for p in [point, before, after]])))
+                midpt = (math.floor(np.mean([p[0] for p in [before, after]])), math.floor(np.mean([p[1] for p in [before, after]])))
                 if self.binary[midpt[0]][midpt[1]] != 0:
-                    continue #point is not a cusp
+                    #notCusp = True
+                    continue 
 
                 ldy = - (point[0] - before[0]); ldx = (point[1] - before[1])
                 if ldx == 0:
-                    #left_deriv = math.inf #1000 if ldy > 0 else -1000
-                    continue
+                    left_deriv = math.inf if ldy > 0 else (- math.inf) #1000 if ldy > 0 else -1000
+                    #continue
                 else:
                     left_deriv = ldy / ldx
 
                 rdy = - (after[0] - point[0]); rdx = (after[1] - point[1])
                 if rdx == 0:
-                    #right_deriv = math.inf #1000 if rdy > 0 else -1000
-                    continue
+                    right_deriv = math.inf if rdy > 0 else (- math.inf) #1000 if rdy > 0 else -1000
+                    #continue
                 else:
                     right_deriv = rdy / rdx
 
                 angles.append(abs( math.atan(left_deriv) - math.atan(right_deriv) ))
+
+            if notCusp:
+                continue
 
             if angles == []:
                 continue
@@ -360,7 +365,7 @@ class Cluster:
         arcs = []
         while self.cusps:
             seq = []
-            previous = self.cusps.pop(0)
+            previous = self.cusps[0]
             k = 0
             #arc is a sequence of contiguous (max distance 1 pixel) cusp-points
             while k < len(self.cusps) and max(abs(self.cusps[k].point[0] - previous.point[0]), abs(self.cusps[k].point[1] - previous.point[1])) <= 1:
@@ -370,7 +375,7 @@ class Cluster:
             arcs.append(seq)
             del self.cusps[:k]
 
-        self.arcs = [arc for arc in arcs if len(arc) > 2] #removing arcs with len < 3 DOES NOT work!
+        self.arcs = [arc for arc in arcs if len(arc) >= 1] #removing arcs with len < 3 DOES NOT work!
         return self.arcs
 
     def showCusps(self, *args):
@@ -562,7 +567,8 @@ class Cluster:
     def splitByEdges(self):
         if self.internalEdges == []:
             newCell = Cluster.makeCell(self.stack_slice, self.binary, self.boundary, [])
-            self.stack_slice.addCell(newCell)
+            if len(newCell.boundary) > 10:
+                self.stack_slice.addCell(newCell)
         else:
             if self.internalEdges:
                 divider = self.internalEdges.pop()
@@ -604,6 +610,7 @@ class Cell(Cluster):
         #stack_slice.addCell(self)
         if not self.internalEdges:
             self.area = self.area()
+            self.roundness = self.roundness()
 
 
     def pointWithin(self, point):
@@ -687,6 +694,7 @@ class Cell(Cluster):
     def roundness(self):
         circum = len(self.boundary)
         ideal = circum / math.pi
+        k = circum // 8
         opposing = [[0,4], [1,5], [2,6], [3,7]]
         diameters = []
 
@@ -695,11 +703,11 @@ class Cell(Cluster):
             return math.floor(d)
 
         for op in opposing:
-            diameters.append(distance(self.boundary[op[0]], self.boundary[op[1]]))
+            diameters.append(distance(self.boundary[op[0] * k], self.boundary[op[1] * k]))
 
         avgDiameter = np.mean(diameters)
-        return 1 - (abs(avgDiameter - ideal) / ideal)
-
+        self.roundness = 1 - (abs(avgDiameter - ideal) / ideal)
+        return self.roundness
 
 
     def kill(self):
@@ -711,7 +719,7 @@ def makeClusters(binary, boundary, stack_slice):
     
     Cluster.clusters = []
     if len(boundary) == 0:
-        return
+        return []
     boundary.sort() #should be sorted but double-checking; sort by i then j
     clusterBounds = []
     while boundary:
@@ -817,7 +825,7 @@ def process_image(inFile, stack_slice):
             i += 1
             try:
                 #c.showCusps(7)
-                c.getTrueCusps(8)
+                c.getTrueCusps(9)
             except AssertionError:
                 noise_clusters.append(c)
             finally:
@@ -872,8 +880,8 @@ class Stack_slice:
     def removeCell(self, cell):
         self.cells.remove(cell)
 
-    def pruneCells(self, roundness_thresh=0.1):
-        self.cells = [c for c in self.cells if c.roundness() > roundness_thresh]
+    def pruneCells(self, roundness_thresh=0.7):
+        self.cells = [c for c in self.cells if c.roundness > roundness_thresh]
 
 class Stack_slice_largest(Stack_slice):
 
@@ -936,20 +944,15 @@ class Stack:
 
 
 
-                        
-
-
-
-prefixes = ['/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f3_normal/eye1-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
-'/mnt/c/Users/Arjit/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-']
-
-#prefix = '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-'
+prefixes = ['/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
+'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
+'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
+'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
+'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f3_normal/eye1-',
+'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
+'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
+'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-',
+'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-']
 
 def parallel(prefix):
 
@@ -979,7 +982,7 @@ def parallel(prefix):
     outFile.write("LARGEST CELLS ARE \n")
     for c in current_stack.large_Cells:
         x+=1
-        outFile.write("Cell {0}, Slice # {1}, Area: {2}\n".format(x, c.stack_slice.number, c.area))
+        outFile.write("Cell {0}, Slice # {1}, Area: {2}, Roundness: {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
         for b in c.boundary:
             out_array[b[0]][b[1]] = WHITE
     
@@ -994,12 +997,16 @@ def parallel(prefix):
 
                 out_array[b[0]][b[1]] = WHITE
 
-        skimage.external.tifffile.imsave(prefix + 'largest.tif' + str(ss.number) , out_array)
+        skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', out_array)
 
 
-with Pool(2) as p:
-   p.map(parallel, prefixes)
-#parallel(prefix)
+#with Pool(2) as p:
+#   p.map(parallel, prefixes)
+
+# p in prefixes:
+#    parallel(p)
+
+parallel(prefixes[-1])
 
 
 
