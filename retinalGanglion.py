@@ -7,6 +7,7 @@ from skimage import io
 from skimage import external
 from skimage import morphology
 from skimage import filters
+from skimage import color
 import math
 
 
@@ -611,6 +612,7 @@ class Cell(Cluster):
         if not self.internalEdges:
             self.area = self.area()
             self.roundness = self.roundness()
+            self.colored = skimage.color.grey2rgb(self.binary)
 
 
     def pointWithin(self, point):
@@ -674,7 +676,7 @@ class Cell(Cluster):
         hits = 0
         for i in range(8):
             if self.pointWithin(other_cell.boundary[k * i]):
-                hits += 1
+                hits += 1        
         return hits >= 4, hits >= 1
 
 
@@ -880,8 +882,9 @@ class Stack_slice:
     def removeCell(self, cell):
         self.cells.remove(cell)
 
-    def pruneCells(self, roundness_thresh=0.7):
+    def pruneCells(self, roundness_thresh=0.75):
         self.cells = [c for c in self.cells if c.roundness > roundness_thresh]
+        self.cells = [c for c in self.cells if c.area > 25]
 
 class Stack_slice_largest(Stack_slice):
 
@@ -904,7 +907,7 @@ class Stack:
 
             for cell in stack_slice.cells:
                 hits = 0
-                large_replace = None
+                large_replace = []
 
                 for large_Cell in self.large_Cells:
                     if cell.contains_or_overlaps(large_Cell)[0]:
@@ -915,6 +918,7 @@ class Stack:
 
                 if hits > 1: #limit reached
                     large_replace = None
+                    continue
 
                 elif hits == 1:
                     self.large_Cells.remove(large_replace)
@@ -923,28 +927,31 @@ class Stack:
                 else:
                     new_cell = True
                     for large_Cell in self.large_Cells:
-                        containedOrOverlapping = large_Cell.contains_or_overlaps(cell)
-                        if containedOrOverlapping[0]: #contained
+                        (contained, overlapping) = large_Cell.contains_or_overlaps(cell)
+                        if contained: #contained
                             new_cell = False
                             break
-                        if containedOrOverlapping[1]: #overlapping
+                        if overlapping: #overlapping
                             if large_Cell.area > cell.area:
                                 new_cell = False
+                                break
                             else:
-                                large_replace = large_Cell
+                                large_replace.append(large_Cell)
+
                     if new_cell:
                         self.large_Cells.append(cell)
                     if large_replace:
-                        self.large_Cells.remove(large_replace)
+                        print('replaced')
+                        for lr in large_replace:
+                            self.large_Cells.remove(lr)
 
         for lg in self.large_Cells:
             lg.stack_slice.finalizedCellSlice.addCell(lg)
 
-        #self.largest_Cells.extend(self.large_Cells)
 
 
-
-prefixes = ['/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
+prefixes = [
+'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
 '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
 '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
 '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
@@ -952,7 +959,38 @@ prefixes = ['/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size P
 '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
 '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
 '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-',
-'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-']
+'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-',
+
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece1-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece2-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece3-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RRD1-P2X7KO/piece1-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1-P2X7KO/piece2-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1-P2X7KO/piece3-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece1-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece2-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece3-gfp-normal/piece-',
+
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece1-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece2-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece3-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RRD1-P2X7KO/piece1-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1-P2X7KO/piece2-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1-P2X7KO/piece3-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/WT/piece1-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/WT/piece2-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/WT/piece3-gfp-normal/piece-',
+
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece1-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece2-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece3-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RRD1-P2X7KO/piece1-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1-P2X7KO/piece2-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1-P2X7KO/piece3-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece1-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece2-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece3-gfp-normal/piece-'
+]
 
 def parallel(prefix):
 
@@ -974,39 +1012,55 @@ def parallel(prefix):
             x += 1
     current_stack.collate_slices()
 
-    out_array.fill(0)
-    x = 1
+    out_rgb = skimage.color.gray2rgb(out_array)
+    out_rgb.fill(0)
+    x = 0
 
     outFile = open(prefix + 'Cell Sizes.csv', 'w')
+
+    colored = ([0, 0, WHITE], [0, WHITE, 0], [WHITE, 0, 0], [WHITE, WHITE, 0], [WHITE, 0, WHITE], [0, WHITE, WHITE], [WHITE, WHITE, WHITE])
 
     outFile.write("LARGEST CELLS ARE \n")
     for c in current_stack.large_Cells:
         x+=1
-        outFile.write("Cell {0}, Slice # {1}, Area: {2}, Roundness: {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
+        outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
+        color_index = c.stack_slice.number % len(colored)
         for b in c.boundary:
-            out_array[b[0]][b[1]] = WHITE
-    
-    skimage.external.tifffile.imsave(prefix + 'largest.tif', out_array)
+            out_rgb[b[0]][b[1]] = colored[color_index]
+
+    outFile.close()
+    skimage.external.tifffile.imsave(prefix + 'largest.tif', out_rgb)
+
+    largest_3d = []
 
     for ss in current_stack.stack_slices:
-        out_array.fill(0)
+        largest_3d.append(skimage.color.gray2rgb(out_array))
+        largest_3d[-1].fill(0)
+        color_index = ss.number % len(colored)
 
         for c in ss.finalizedCellSlice.cells:
 
             for b in c.boundary:
 
-                out_array[b[0]][b[1]] = WHITE
+                largest_3d[-1][b[0]][b[1]] = colored[color_index]
 
-        skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', out_array)
+        skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
+
+    largest_3d = np.array(largest_3d)
+    skimage.external.tifffile.imsave('{0}largest3D.tif'.format(prefix), largest_3d)
+
 
 
 #with Pool(2) as p:
 #   p.map(parallel, prefixes)
 
-# p in prefixes:
-#    parallel(p)
+for p in prefixes:
+    try:
+        parallel(p)
+    except:
+        print('\n\n{0} WAS NOT PROCESSED\n\n'.format(p))
 
-parallel(prefixes[-1])
+#parallel('/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-')
 
 
 
