@@ -941,7 +941,7 @@ class Stack:
                     if new_cell:
                         self.large_Cells.append(cell)
                     if large_replace:
-                        print('replaced')
+                        #print('replaced')
                         for lr in large_replace:
                             self.large_Cells.remove(lr)
 
@@ -951,30 +951,30 @@ class Stack:
 
 
 prefixes = [
-'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
-'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
-'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
-'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
-'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f3_normal/eye1-',
-'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
-'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
-'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-',
-'/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f2_normal/eye1-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f3_normal/eye1-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f1_normal/eye1-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f2_normal/eye1-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p2f3_normal/eye1-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f1_normal/eye2-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f2_normal/eye2-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye2p1f3_normal/eye2-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-',
 
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece1-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece2-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece3-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RRD1-P2X7KO/piece1-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1-P2X7KO/piece2-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1-P2X7KO/piece3-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece1-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece2-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece3-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece1-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece2-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece3-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1-P2X7KO/piece1-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1-P2X7KO/piece2-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1-P2X7KO/piece3-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece1-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece2-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece3-gfp-normal/piece-',
 
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece1-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece2-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece3-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RRD1-P2X7KO/piece1-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece1-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece2-gfp-normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece3-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1-P2X7KO/piece1-gfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1-P2X7KO/piece2-gfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1-P2X7KO/piece3-gfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/WT/piece1-gfp-normal/piece-',
@@ -984,12 +984,25 @@ prefixes = [
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece1-gfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece2-gfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece3-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RRD1-P2X7KO/piece1-gfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1-P2X7KO/piece1-gfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1-P2X7KO/piece2-gfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1-P2X7KO/piece3-gfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece1-gfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece2-gfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece3-gfp-normal/piece-'
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece3-gfp-normal/piece-' #,
+
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 2/eye1p1f1_normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 2/eye1p1f2_normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 2/eye1p1f3_normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 2/eye1p2f1_normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 2/eye1p2f2_normal/piece-',
+
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 3/eye1p1f1_normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 3/eye1p1f2_normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 3/eye1p1f3_normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 3/eye1p2f1_normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 3/eye1p2f2_normal/piece-',
+# '/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 3/eye1p2f3_normal/piece-',
 ]
 
 def parallel(prefix):
@@ -1054,14 +1067,13 @@ def parallel(prefix):
 #with Pool(2) as p:
 #   p.map(parallel, prefixes)
 
-for p in prefixes:
-    try:
-        parallel(p)
-    except:
-        print('\n\n{0} WAS NOT PROCESSED\n\n'.format(p))
+# for p in prefixes:
+#     try:
+#         parallel(p)
+#     except:
+#         print('\n\n{0} WAS NOT PROCESSED\n\n'.format(p))
 
-#parallel('/Users/arjitmisra/Documents/Kramer Lab/vit A/Cell_sizes/Cell Size Project/Vitamin A Free Diet in 3 RD1 mice/Mouse 1/eye1p1f1_normal/eye1-')
-
+parallel('/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1-P2X7KO/piece1-gfp-normal/piece-')
 
 
 
