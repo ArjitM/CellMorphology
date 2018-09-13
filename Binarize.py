@@ -10,6 +10,9 @@ from skimage import color
 import math
 
 
+global WHITE
+WHITE = None
+
 
 class Compartment:
     def __init__(self, left, right, top, bottom, image_values):

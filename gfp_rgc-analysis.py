@@ -80,6 +80,9 @@ def process_image(inFile, stack_slice):
         out_array = pic.asarray(); #copy dimensions
         global WHITE
         WHITE = skimage.dtype_limits(pic_array, True)[1]
+        Binarize.WHITE = WHITE
+        Cell_objects.WHITE = WHITE
+        
         regions = Compartmentalize(pic_array, 32)
 
         basicEdge(pic_array, out_array, regions) # out_array is modified

@@ -1,5 +1,8 @@
 import math
 
+global WHITE
+WHITE = None
+
 class Cusp:
 
     def __init__(self, point, left_deriv, right_deriv, angle, angle_trend):
@@ -122,6 +125,9 @@ class Cluster:
 
     def splitBentCells(self):
         pass
+
+    def transformToCell(self):
+        return Cluster.makeCell(self.stack_slice, self.binary, self.boundary, [])
 
     @staticmethod
     def makeCell(stack_slice, binary, cell_boundary, internalEdges):
