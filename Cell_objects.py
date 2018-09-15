@@ -1,5 +1,12 @@
 import math
 import numpy as np
+import skimage
+from skimage import io
+from skimage import external
+from skimage import morphology
+from skimage import filters
+from skimage import color
+
 global WHITE
 WHITE = None
 
