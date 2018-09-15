@@ -1,8 +1,11 @@
 from multiprocessing import Pool
 
+import Binarize
+import Cell_objects
 from Binarize import *
 from Cell_objects import *
 from Stack_objects import *
+import numpy as np
 
 
 def makeClusters(binary, boundary, stack_slice):
