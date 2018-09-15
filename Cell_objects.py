@@ -1,5 +1,5 @@
 import math
-
+import numpy as np
 global WHITE
 WHITE = None
 
