@@ -163,7 +163,31 @@ def visualize_Clusters(clusters, out_array, inFile):
 
 
 
-prefixes = []
+prefixes = [
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece1-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece2-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece3-rfp-normal/piece-',
+
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece1-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece2-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece3-rfp-normal/piece-',
+
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece1-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece2-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece3-rfp-normal/piece-',
+
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/WT/piece1-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/WT/piece2-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/WT/piece3-rfp-normal/piece-',
+
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece1-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece2-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece3-rfp-normal/piece-',
+
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece1-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece2-rfp-normal/piece-',
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece3-rfp-normal/piece-',
+]
 
 def parallel(prefix):
 
@@ -224,16 +248,16 @@ def parallel(prefix):
 
 
 
-#with Pool(2) as p:
+# with Pool(3) as p:
 #   p.map(parallel, prefixes)
 
-# for p in prefixes:
-#     try:
-#         parallel(p)
-#     except:
-#         print('\n\n{0} WAS NOT PROCESSED\n\n'.format(p))
+for p in prefixes:
+    try:
+        parallel(p)
+    except:
+        print('\n\n{0} WAS NOT PROCESSED\n\n'.format(p))
 
-parallel('/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece1-rfp-normal/piece-')
+#parallel('/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece1-rfp-normal/piece-')
 
 
 
