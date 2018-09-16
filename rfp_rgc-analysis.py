@@ -6,6 +6,7 @@ from Binarize import *
 from Cell_objects import *
 from Stack_objects import *
 import numpy as np
+from skimage import util
 
 def makeClusters(binary, boundary, stack_slice):
     
@@ -99,6 +100,7 @@ def process_image(inFile, stack_slice):
         noise_handler = Noise(out_array, iterations=3, binary=True)
         noise_handler.reduce()
 
+        out_array = skimage.util.invert(out_array)
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
 
         print("***made binary")
@@ -117,7 +119,17 @@ def process_image(inFile, stack_slice):
         noise_clusters = []
         i = -1
         for c in clusters:
-            c.transformToCell()
+            #c.transformToCell()
+            try:
+                #c.showCusps(7)
+                c.getTrueCusps(6)
+            except AssertionError:
+                noise_clusters.append(c)
+            finally:
+                c.pruneCusps()
+                c.propagateInternalBoundaries()
+                c.showCusps()
+                c.splitByEdges()
 
         for c in noise_clusters:
             c.kill()

@@ -1,3 +1,6 @@
+from Cell_objects import *
+
+
 class Stack_slice:
 
     def __init__(self, number, cells):
@@ -16,7 +19,7 @@ class Stack_slice:
 
     def pruneCells(self, roundness_thresh=0.75):
         self.cells = [c for c in self.cells if c.roundness > roundness_thresh]
-        self.cells = [c for c in self.cells if c.area > 25]
+        self.cells = [c for c in self.cells if c.area > 15 and area < 500]
 
 class Stack_slice_largest(Stack_slice):
 

@@ -6,6 +6,7 @@ from skimage import external
 from skimage import morphology
 from skimage import filters
 from skimage import color
+from Binarize import *
 
 global WHITE
 WHITE = None
