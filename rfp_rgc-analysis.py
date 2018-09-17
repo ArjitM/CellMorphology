@@ -7,6 +7,7 @@ from Cell_objects import *
 from Stack_objects import *
 import numpy as np
 from skimage import util
+import os
 
 def makeClusters(binary, boundary, stack_slice):
     
@@ -134,6 +135,8 @@ def process_image(inFile, stack_slice):
         for c in noise_clusters:
             c.kill()
 
+        #visualize_Clusters(clusters, out_array, inFile)
+
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
         return out_array
 
@@ -161,8 +164,6 @@ def visualize_Clusters(clusters, out_array, inFile):
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
 
 
-
-
 prefixes = [
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece1-rfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece2-rfp-normal/piece-',
@@ -186,8 +187,7 @@ prefixes = [
 
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece1-rfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece2-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece3-rfp-normal/piece-',
-]
+'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece3-rfp-normal/piece-']
 
 def parallel(prefix):
 
@@ -197,13 +197,21 @@ def parallel(prefix):
     while True:
         try:
             stack_slice = Stack_slice(x, cells=[])
-            out_array = process_image(prefix + str(x).rjust(4, '0') + '.tif', stack_slice)
-            stack_slice.pruneCells()
+            inFile = prefix + str(x).rjust(4, '0') + '.tif'
+            print("************",inFile)
+            os.system('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")))
+            out_array = process_image(inFile, stack_slice)
+            stack_slice.pruneCells(0.5)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
             current_stack.addSlice(stack_slice)
 
         except IOError:
-            break
+            print("IOError")
+            if x != 0:
+                break
+            else:
+                print('{0} not processed'.format(prefix))
+                return
         else:
             print(prefix)
             x += 1
@@ -248,14 +256,14 @@ def parallel(prefix):
 
 
 
-# with Pool(3) as p:
-#   p.map(parallel, prefixes)
+with Pool(3) as p:
+  p.map(parallel, prefixes)
 
-for p in prefixes:
-    try:
-        parallel(p)
-    except:
-        print('\n\n{0} WAS NOT PROCESSED\n\n'.format(p))
+# for p in prefixes:
+#     try:
+#         parallel(p)
+#     except:
+#         print('\n\n{0} WAS NOT PROCESSED\n\n'.format(p))
 
 #parallel('/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece1-rfp-normal/piece-')
 

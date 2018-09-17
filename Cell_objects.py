@@ -135,7 +135,9 @@ class Cluster:
         pass
 
     def transformToCell(self):
-        return Cluster.makeCell(self.stack_slice, self.binary, self.boundary, [])
+        nc = Cluster.makeCell(self.stack_slice, self.binary, self.boundary, [])
+        self.stack_slice.addCell(nc)
+        return nc
 
     @staticmethod
     def makeCell(stack_slice, binary, cell_boundary, internalEdges):
