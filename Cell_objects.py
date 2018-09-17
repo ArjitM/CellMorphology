@@ -155,8 +155,10 @@ class Cluster:
 
         self.constriction_points = []
         
-        cleave_points = [ min(arc, key=lambda c: c.angle) for arc in self.arcs]
+        #cleave_points = [ min(arc, key=lambda c: c.angle) for arc in self.arcs]
         # these are the points where internal boundaries start/stop. Find by looking for cusp region points with the least (most constricted) angle
+        cleave_points = [arc[len(arc) // 2] for arc in self.arcs]
+
 
         completed_pairs = []
         #boundaries that have already been made, avoid duplication
@@ -165,7 +167,7 @@ class Cluster:
 
             self.constriction_points.append(cp)
             orientation = lambda p: np.mean( [math.pi - abs(math.atan(p.left_deriv) - math.atan(cp.left_deriv)), math.pi - abs(math.atan(p.right_deriv) - math.atan(cp.right_deriv))] )
-            viable = filter(lambda p: orientation(p) < math.pi * 0.75, cleave_points)
+            viable = filter(lambda p: orientation(p) < math.pi * 0.5, cleave_points)
             viable_no_duplicate = filter(lambda p: (p, cp) not in completed_pairs and (cp, p) not in completed_pairs, viable)
             try:
                 pair = min(viable_no_duplicate, key = lambda p: (cp.point[0] - p.point[0])**2 + (cp.point[1] - p.point[1])**2 )

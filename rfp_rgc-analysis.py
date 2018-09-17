@@ -66,7 +66,7 @@ def makeClusters(binary, boundary, stack_slice):
             else:
                 current.append(neighbor)
                 boundary.remove(neighbor)
-        if len(current) > 12:
+        if len(current) > 12 and len(current) < 1000:
             clusterBounds.append(current)
 
     clusters = []
@@ -123,7 +123,7 @@ def process_image(inFile, stack_slice):
             #c.transformToCell()
             try:
                 #c.showCusps(7)
-                c.getTrueCusps(6)
+                c.getTrueCusps(10)
             except AssertionError:
                 noise_clusters.append(c)
             finally:
@@ -201,7 +201,7 @@ def parallel(prefix):
             print("************",inFile)
             os.system('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")))
             out_array = process_image(inFile, stack_slice)
-            stack_slice.pruneCells(0.5)
+            stack_slice.pruneCells(0.75)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
             current_stack.addSlice(stack_slice)
 
@@ -256,7 +256,7 @@ def parallel(prefix):
 
 
 
-with Pool(3) as p:
+with Pool(2) as p:
   p.map(parallel, prefixes)
 
 # for p in prefixes:
