@@ -421,12 +421,12 @@ class Cell(Cluster):
         return var_pairs
 
     def contains_or_overlaps(self, other_cell):
-        k = len(other_cell.boundary) // 8
+        k = len(other_cell)
         hits = 0
-        for i in range(8):
-            if self.pointWithin(other_cell.boundary[k * i]):
+        for other_p in other_cell.boundary:
+            if self.pointWithin(other_p):
                 hits += 1        
-        return hits >= 4, hits >= 1
+        return hits >= k // 3 and self.pointWithin(other_cell.pivot), hits >= k // 6
 
 
     def area(self):
@@ -445,19 +445,19 @@ class Cell(Cluster):
     def roundness(self):
         circum = len(self.boundary)
         ideal = circum / math.pi
-        k = circum // 8
-        opposing = [[0,4], [1,5], [2,6], [3,7]]
-        diameters = []
+        # k = circum // 8
+        # opposing = [[0,4], [1,5], [2,6], [3,7]]
+        # diameters = []
 
         def distance(p1, p2):
             d = math.sqrt( (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
-            return math.floor(d)
+            return d
 
-        for op in opposing:
-            diameters.append(distance(self.boundary[op[0] * k], self.boundary[op[1] * k]))
+        normalized_distances = [(distance(b, self.pivot) - ideal)/ideal for b in self.boundary]
 
-        avgDiameter = np.mean(diameters)
-        self.roundness = 1 - (abs(avgDiameter - ideal) / ideal)
+
+        #avgDiameter = np.mean(diameters)
+        self.roundness = 1 - np.mean(normalized_distances)
         return self.roundness
 
 

@@ -11,7 +11,6 @@ class Stack_slice:
     def addCell(self, cell):
         if isinstance(cell, Cell):
             self.cells.append(cell)
-            print("Added!!!!!!!!!!")
         else:
             print("not a cell instance")
 
