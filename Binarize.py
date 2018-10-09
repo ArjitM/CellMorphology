@@ -10,7 +10,10 @@ from skimage import color
 import math
 
 global WHITE
-WHITE = None
+WHITE = None #should be set by main main script
+
+global bin_WHITE
+bin_WHITE = 1 #boolean rendition
 
 
 class Compartment:
@@ -165,7 +168,7 @@ class Noise:
                 hit_vals.append(1)
             else:
                 hit_vals.append(0)
-        return [hits > (num * 0.5), 1] if self.image_values[i][j] == 0 else [hits > (num * 0.5), 0] #replace 1 with WHITE for non-boolean rendition
+        return [hits > (num * 0.5), bin_WHITE] if self.image_values[i][j] == 0 else [hits > (num * 0.5), 0]  
 
     def smooth(self):
         for i in range(len(self.image_values)):
@@ -253,9 +256,9 @@ def findBoundaryPoints(binary):
     boundary = []
     for i in range(len(binary)):
         for j in range(len(binary[0])):
-            n_touching = len(list(filter(lambda p: binary[p[0]][p[1]] == WHITE, getNeighborIndices(binary, i, j))))
+            n_touching = len(list(filter(lambda p: binary[p[0]][p[1]] == bin_WHITE, getNeighborIndices(binary, i, j))))
             #number of neighbors that are within a potential cell
-            if binary[i][j] == WHITE and n_touching != 8:
+            if binary[i][j] == bin_WHITE and n_touching != 8:
                 boundary.append((i, j))#, n_touching > 5)) #last argument is cusp boolean
     return boundary
 

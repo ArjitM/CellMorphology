@@ -108,6 +108,14 @@ def makeBinary(inFile, pic_array):
 
 def process_image(inFile, stack_slice, binarized, clustered, split):
 
+    '''
+    IF split, immediately return edged image
+
+    IF clustered, do cluster processing
+
+    Else: proceed below
+    '''
+
     with skimage.external.tifffile.TiffFile(inFile) as pic:
         pic_array = pic.asarray()
 
@@ -131,8 +139,13 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
    # test = internalBorderTest(pic_array, out_array, boundary)
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Bound.tif'), bound)
 
-    Cluster.pic = pic_array
-    clusters = makeClusters(out_array, boundary, stack_slice)
+    if clustered:
+        pass
+    else:
+        Cluster.pic = pic_array
+        clusters = makeClusters(out_array, boundary, stack_slice)
+
+
     noise_clusters = []
     i = -1
     for c in clusters:
