@@ -9,6 +9,8 @@ import numpy as np
 from skimage import util
 import os
 
+import argparse
+
 def makeClusters(binary, boundary, stack_slice):
     
     Cluster.clusters = []
@@ -189,7 +191,7 @@ prefixes = [
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece2-rfp-normal/piece-',
 '/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece3-rfp-normal/piece-']
 
-def parallel(prefix):
+def parallel(prefix, binarized, clustered, split):
 
     current_stack = Stack()
     x = 1
@@ -255,6 +257,15 @@ def parallel(prefix):
     skimage.external.tifffile.imsave('{0}largest3D.tif'.format(prefix), largest_3d)
 
 
+parser = argparse.ArgumentParser(description="specify previous completion")
+
+parser.add_option('-b', '--binarized', dest="binarized", default=False)
+parser.add_option('-c', '--clustered', dest="clustered", default=False)
+parser.add_option('-s', '--split', dest="split", default=False)
+
+args = parser.parse_args()
+
+one_arg = lambda prefix: parallel(prefix, args.binarized, args.clustered, args.split)
 
 with Pool(2) as p:
   p.map(parallel, prefixes)
