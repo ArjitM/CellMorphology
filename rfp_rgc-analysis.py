@@ -77,70 +77,84 @@ def makeClusters(binary, boundary, stack_slice):
     print("$$$$$$$$$$$$$$", len(clusterBounds))
     return clusters
 
+def makeBinary(inFile, pic_array):
 
-def process_image(inFile, stack_slice):
+    #pic_array = pic.asarray()
+    #out_array = pic.asarray(); #copy dimensions
+    out_array = [ [None] * len(pic_array[1]) ] * len(pic_array)
+    global WHITE
+    WHITE = skimage.dtype_limits(pic_array, True)[1]
+    Binarize.WHITE = WHITE
+    Cell_objects.WHITE = WHITE
+
+    regions = Compartmentalize(pic_array, 32)
+
+    basicEdge(pic_array, out_array, regions) # preliminary edge detection via pixel gradient
+    out_array = np.array(out_array, dtype=np.bool_) # CONVERT TO boolean binary image
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
+
+    regions.setNoiseCompartments(out_array, 0.95)
+
+    enhanceEdges(pic_array, out_array, regions) # use detected averages to guess missing edges
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
+
+    noise_handler = Noise(out_array, iterations=3, binary=True)
+    noise_handler.reduce() #reduce salt and pepper noise incorrectly labelled as edges 
+
+    out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
+    return out_array
+
+
+def process_image(inFile, stack_slice, binarized, clustered, split):
 
     with skimage.external.tifffile.TiffFile(inFile) as pic:
+        pic_array = pic.asarray()
 
-        pic_array = pic.asarray();
-        out_array = pic.asarray(); #copy dimensions
-        global WHITE
-        WHITE = skimage.dtype_limits(pic_array, True)[1]
-        Binarize.WHITE = WHITE
-        Cell_objects.WHITE = WHITE
+    if binarized:
+        try:
+            with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
+                out_array = pic_bin.asarray()
+        else:
+            out_array = makeBinary(inFile, pic_array)
+    else:
+        out_array = makeBinary(inFile, pic_array)
 
-        regions = Compartmentalize(pic_array, 32)
+    print("***made binary")
 
-        basicEdge(pic_array, out_array, regions) # out_array is modified
-        skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
-        #skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeSobel.tif'), skimage.img_as_uint(skimage.filters.sobel(pic_array)))
+    boundary = findBoundaryPoints(out_array)
 
-        regions.setNoiseCompartments(out_array, 0.95)
+    bound = pic.asarray()
+    for b in boundary:
+        bound[b[0]][b[1]] = 0
 
-        enhanceEdges(pic_array, out_array, regions)
-        skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
+   # test = internalBorderTest(pic_array, out_array, boundary)
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_Bound.tif'), bound)
 
-        noise_handler = Noise(out_array, iterations=3, binary=True)
-        noise_handler.reduce()
+    Cluster.pic = pic_array
+    clusters = makeClusters(out_array, boundary, stack_slice)
+    noise_clusters = []
+    i = -1
+    for c in clusters:
+        #c.transformToCell()
+        try:
+            #c.showCusps(7)
+            c.getTrueCusps(10)
+        except AssertionError:
+            noise_clusters.append(c)
+        finally:
+            c.pruneCusps()
+            c.propagateInternalBoundaries()
+            c.showCusps()
+            c.splitByEdges()
 
-        out_array = skimage.util.invert(out_array)
-        skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
+    for c in noise_clusters:
+        c.kill()
 
-        print("***made binary")
+    #visualize_Clusters(clusters, out_array, inFile)
 
-        boundary = findBoundaryPoints(out_array)
-
-        bound = pic.asarray()
-        for b in boundary:
-            bound[b[0]][b[1]] = 0
-
-       # test = internalBorderTest(pic_array, out_array, boundary)
-        skimage.external.tifffile.imsave(inFile.replace('.tif', '_Bound.tif'), bound)
-
-        Cluster.pic = pic_array
-        clusters = makeClusters(out_array, boundary, stack_slice)
-        noise_clusters = []
-        i = -1
-        for c in clusters:
-            #c.transformToCell()
-            try:
-                #c.showCusps(7)
-                c.getTrueCusps(10)
-            except AssertionError:
-                noise_clusters.append(c)
-            finally:
-                c.pruneCusps()
-                c.propagateInternalBoundaries()
-                c.showCusps()
-                c.splitByEdges()
-
-        for c in noise_clusters:
-            c.kill()
-
-        #visualize_Clusters(clusters, out_array, inFile)
-
-        skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
-        return out_array
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
+    return out_array
 
 
 def visualize_Clusters(clusters, out_array, inFile):
@@ -196,13 +210,21 @@ def parallel(prefix, binarized, clustered, split):
     current_stack = Stack()
     x = 1
     out_array = []
+
+    if split:
+        binarized, clustered = True, True
+    elif clustered:
+        binarized = True
+
     while True:
         try:
             stack_slice = Stack_slice(x, cells=[])
             inFile = prefix + str(x).rjust(4, '0') + '.tif'
             print("************",inFile)
             os.system('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")))
-            out_array = process_image(inFile, stack_slice)
+
+            out_array = process_image(inFile, stack_slice, binarized, clustered, split)
+
             stack_slice.pruneCells(0.75)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
             current_stack.addSlice(stack_slice)

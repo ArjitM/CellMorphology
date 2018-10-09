@@ -1,5 +1,5 @@
 import numpy as np 
-#from __future__ import division #not using python 2 !!
+#from __future__ import division #DO NOT use python 2 !!
 
 import skimage
 from skimage import io
@@ -8,7 +8,6 @@ from skimage import morphology
 from skimage import filters
 from skimage import color
 import math
-
 
 global WHITE
 WHITE = None
@@ -166,7 +165,7 @@ class Noise:
                 hit_vals.append(1)
             else:
                 hit_vals.append(0)
-        return [hits > (num * 0.5), WHITE] if self.image_values[i][j] == 0 else [hits > (num * 0.5), 0]
+        return [hits > (num * 0.5), 1] if self.image_values[i][j] == 0 else [hits > (num * 0.5), 0] #replace 1 with WHITE for non-boolean rendition
 
     def smooth(self):
         for i in range(len(self.image_values)):
@@ -230,7 +229,7 @@ def basicEdge(pic_array, out_array, regions):
             elif left ==  WHITE:
                 out_array[i][j] = 0 #remove saturated pixels
             else:
-                out_array[i][j] = WHITE
+                out_array[i][j] = 1 #WHITE //using boolean representation to save memory
 
 def enhanceEdges(pic_array, out_array, regions):
     global borderMean
@@ -245,10 +244,9 @@ def enhanceEdges(pic_array, out_array, regions):
             elif pic_array[i][j] > local_border_avg:
                 out_array[i][j] = 0 #blackens blood vessels
             elif pic_array[i][j] < local_border_avg and regions.getCompartment(i, j).noise_compartment == False:
-                out_array[i][j] = WHITE
+                out_array[i][j] = 1 #WHITE
             #if regions.getCompartment(i, j).noise_compartment == True:
                #out_array[i][j] = WHITE // 2
-
 
 
 def findBoundaryPoints(binary):
