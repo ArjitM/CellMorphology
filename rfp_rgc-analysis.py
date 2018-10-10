@@ -106,8 +106,7 @@ def makeBinary(inFile, pic_array):
     return out_array
 
 
-def makeEdged(clusters):
-
+def makeCells(clusters):
     noise_clusters = []
     i = -1
     for c in clusters:
@@ -118,9 +117,8 @@ def makeEdged(clusters):
         finally:
             c.pruneCusps()
             c.propagateInternalBoundaries()
-            #c.showCusps()
+            #c.showCusps()  #WONT WORK with boolean binary
             c.splitByEdges()
-
     for c in noise_clusters:
         c.kill()
 
@@ -134,17 +132,27 @@ def getBinary(inFile, pic_array, binarized):
             bin_array = makeBinary(inFile, pic_array)
     else:
         bin_array = makeBinary(inFile, pic_array)
-
     print("***made binary")
+    return bin_array
+
 
 def superimposeBoundary(inFile, pic_array, boundary):
-
     bound = copy.deepcopy(pic_array)
     for b in boundary:
         bound[b[0]][b[1]] = 0
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Bound.tif'), bound)
 
+def loadClusters(inFile):
+    pass
 
+def loadCells(inFile):
+    pass
+
+def saveClusters(clusters):
+    pass
+
+def saveCells():
+    pass
 
 
 def process_image(inFile, stack_slice, binarized, clustered, split):
@@ -154,7 +162,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
 
     if split: #breakpoint to test stack collation
         try:
-            loadEdges()
+            loadCells()
         except:
             clustered = True
         else:
@@ -168,18 +176,20 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
             boundary = findBoundaryPoints(bin_array)
             Cluster.pic = pic_array
             clusters = makeClusters(bin_array, boundary, stack_slice)
+            saveClusters(clusters)
         finally:
-            makeEdged(clusters)
-            saveEdged()
+            makeCells(clusters)
+            saveCells()
             return pic_array
 
     else:
         bin_array = getBinary(inFile, pic_array, binarized)
         boundary = findBoundaryPoints(bin_array)
         Cluster.pic = pic_array
-        clusters = makeClusters(bin_array, boundary, stack_slice)       
-        makeEdged(clusters) 
-        saveEdged()
+        clusters = makeClusters(bin_array, boundary, stack_slice)
+        saveClusters(clusters)  
+        makeCells(clusters) 
+        saveCells()
         return pic_array
 
 
