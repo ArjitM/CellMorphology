@@ -8,7 +8,7 @@ from Stack_objects import *
 import numpy as np
 from skimage import util
 import os
-
+import copy
 import argparse
 
 def makeClusters(binary, boundary, stack_slice):
@@ -106,68 +106,88 @@ def makeBinary(inFile, pic_array):
     return out_array
 
 
-def process_image(inFile, stack_slice, binarized, clustered, split):
-
-    '''
-    IF split, immediately return edged image
-
-    IF clustered, do cluster processing
-
-    Else: proceed below
-    '''
-
-    with skimage.external.tifffile.TiffFile(inFile) as pic:
-        pic_array = pic.asarray()
-
-    if binarized:
-        try:
-            with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
-                out_array = pic_bin.asarray()
-        else:
-            out_array = makeBinary(inFile, pic_array)
-    else:
-        out_array = makeBinary(inFile, pic_array)
-
-    print("***made binary")
-
-    boundary = findBoundaryPoints(out_array)
-
-    bound = pic.asarray()
-    for b in boundary:
-        bound[b[0]][b[1]] = 0
-
-   # test = internalBorderTest(pic_array, out_array, boundary)
-    skimage.external.tifffile.imsave(inFile.replace('.tif', '_Bound.tif'), bound)
-
-    if clustered:
-        pass
-    else:
-        Cluster.pic = pic_array
-        clusters = makeClusters(out_array, boundary, stack_slice)
-
+def makeEdged(clusters):
 
     noise_clusters = []
     i = -1
     for c in clusters:
-        #c.transformToCell()
         try:
-            #c.showCusps(7)
             c.getTrueCusps(10)
         except AssertionError:
             noise_clusters.append(c)
         finally:
             c.pruneCusps()
             c.propagateInternalBoundaries()
-            c.showCusps()
+            #c.showCusps()
             c.splitByEdges()
 
     for c in noise_clusters:
         c.kill()
 
+def getBinary(inFile, pic_array, binarized):
+
+    if binarized:
+        try:
+            with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
+                bin_array = pic_bin.asarray()
+        else:
+            bin_array = makeBinary(inFile, pic_array)
+    else:
+        bin_array = makeBinary(inFile, pic_array)
+
+    print("***made binary")
+
+def superimposeBoundary(inFile, pic_array, boundary):
+
+    bound = copy.deepcopy(pic_array)
+    for b in boundary:
+        bound[b[0]][b[1]] = 0
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_Bound.tif'), bound)
+
+
+
+
+def process_image(inFile, stack_slice, binarized, clustered, split):
+
+    with skimage.external.tifffile.TiffFile(inFile) as pic:
+        pic_array = pic.asarray()
+
+    if split: #breakpoint to test stack collation
+        try:
+            loadEdges()
+        except:
+            clustered = True
+        else:
+            return pic_array
+
+    if clustered:
+        try:
+            clusters = loadClusters()
+        except:
+            bin_array = getBinary(inFile, pic_array, binarized=True)
+            boundary = findBoundaryPoints(bin_array)
+            Cluster.pic = pic_array
+            clusters = makeClusters(bin_array, boundary, stack_slice)
+        finally:
+            makeEdged(clusters)
+            saveEdged()
+            return pic_array
+
+    else:
+        bin_array = getBinary(inFile, pic_array, binarized)
+        boundary = findBoundaryPoints(bin_array)
+        Cluster.pic = pic_array
+        clusters = makeClusters(bin_array, boundary, stack_slice)       
+        makeEdged(clusters) 
+        saveEdged()
+        return pic_array
+
+
+   # test = internalBorderTest(pic_array, out_array, boundary)
     #visualize_Clusters(clusters, out_array, inFile)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
-    return out_array
+    return pic_array
 
 
 def visualize_Clusters(clusters, out_array, inFile):
@@ -236,7 +256,7 @@ def parallel(prefix, binarized, clustered, split):
             print("************",inFile)
             os.system('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")))
 
-            out_array = process_image(inFile, stack_slice, binarized, clustered, split)
+            pic_array = process_image(inFile, stack_slice, binarized, clustered, split)
 
             stack_slice.pruneCells(0.75)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
