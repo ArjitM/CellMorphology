@@ -10,6 +10,7 @@ from skimage import util
 import os
 import copy
 import argparse
+import pickle
 
 def makeClusters(binary, boundary, stack_slice):
     
@@ -146,10 +147,15 @@ def loadClusters(inFile):
     pass
 
 def loadCells(inFile):
-    pass
+    cellFile = open(inFile.replace('.tif', '_clusters.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
+    Cluster.clusters = pickle.load(cellFile)
+    cellFile.close()
+    return Cluster.clusters
 
-def saveClusters(clusters):
-    pass
+def saveClusters(inFile, clusters=Clusters.clusters):
+    outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
+    pickle.dump(clusters)
+    outFile.close()
 
 def saveCells():
     pass
@@ -163,7 +169,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
     if split: #breakpoint to test stack collation
         try:
             loadCells()
-        except:
+        except FileNotFoundError:
             clustered = True
         else:
             return pic_array
@@ -171,7 +177,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
     if clustered:
         try:
             clusters = loadClusters()
-        except:
+        except FileNotFoundError:
             bin_array = getBinary(inFile, pic_array, binarized=True)
             boundary = findBoundaryPoints(bin_array)
             Cluster.pic = pic_array
@@ -332,8 +338,13 @@ args = parser.parse_args()
 
 one_arg = lambda prefix: parallel(prefix, args.binarized, args.clustered, args.split)
 
-with Pool(2) as p:
-  p.map(parallel, prefixes)
+
+test_prefixes = [
+'/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f2_normal/eye1-',
+'/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f3_normal/eye1-'
+]
+with Pool(2) as p: #multiprocessing.cpu_count()
+  p.map(parallel, test_prefixes)
 
 # for p in prefixes:
 #     try:

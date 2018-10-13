@@ -421,7 +421,7 @@ class Cell(Cluster):
         return var_pairs
 
     def contains_or_overlaps(self, other_cell):
-        k = len(other_cell)
+        k = len(other_cell.boundary)
         hits = 0
         for other_p in other_cell.boundary:
             if self.pointWithin(other_p):

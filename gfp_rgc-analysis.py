@@ -1,3 +1,4 @@
+import time
 from multiprocessing import Pool
 
 import Binarize
@@ -6,7 +7,7 @@ from Binarize import *
 from Cell_objects import *
 from Stack_objects import *
 import numpy as np
-
+from optparse import OptionParser
 
 def makeClusters(binary, boundary, stack_slice):
     
@@ -102,7 +103,7 @@ def process_image(inFile, stack_slice):
 
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
 
-        print("***made binary")
+        #print("***made binary")
 
         boundary = findBoundaryPoints(out_array)
 
@@ -138,9 +139,9 @@ def process_image(inFile, stack_slice):
 
 
 def visualize_Clusters(clusters, out_array, inFile):
-    print(len(clusters))
-    for c in clusters:
-        print(c)
+    #print(len(clusters))
+    #for c in clusters:
+    #    print(c)
     
     c_arr = out_array[:]
     for i in range(len(c_arr)):
@@ -228,13 +229,13 @@ def parallel(prefix):
             stack_slice = Stack_slice(x, cells=[])
             out_array = process_image(prefix + str(x).rjust(4, '0') + '.tif', stack_slice)
             stack_slice.pruneCells()
-            print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
+            #print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
             current_stack.addSlice(stack_slice)
 
         except IOError:
             break
         else:
-            print(prefix)
+            #print(prefix)
             x += 1
     current_stack.collate_slices()
 
@@ -242,7 +243,7 @@ def parallel(prefix):
     out_rgb.fill(0)
     x = 0
 
-    outFile = open(prefix + 'Cell Sizes.csv', 'w')
+    outFile = open(prefix + 'TIMECell Sizes.csv', 'w')
 
     colored = ([0, 0, WHITE], [0, WHITE, 0], [WHITE, 0, 0], [WHITE, WHITE, 0], [WHITE, 0, WHITE], [0, WHITE, WHITE], [WHITE, WHITE, WHITE])
 
@@ -276,7 +277,6 @@ def parallel(prefix):
     skimage.external.tifffile.imsave('{0}largest3D.tif'.format(prefix), largest_3d)
 
 
-
 #with Pool(2) as p:
 #   p.map(parallel, prefixes)
 
@@ -286,8 +286,26 @@ def parallel(prefix):
 #     except:
 #         print('\n\n{0} WAS NOT PROCESSED\n\n'.format(p))
 
-parallel('/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1-P2X7KO/piece1-gfp-normal/piece-')
+start_time = time.time()
 
+parallel('/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f2_normal/eye1-')
+parallel('/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f3_normal/eye1-')
+
+end_time = time.time()
+print("Time taken for sequential execution: {0}".format(end_time - start_time))
+
+
+start_time = time.time()
+test_prefixes = [
+'/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f2_normal/eye1-',
+'/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f3_normal/eye1-'
+]
+
+with Pool(2) as p:
+    p.map(parallel, test_prefixes)
+
+end_time = time.time()
+print("Time taken for parallel execution: {0}".format(end_time - start_time))
 
 
 
