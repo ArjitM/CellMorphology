@@ -129,6 +129,8 @@ def getBinary(inFile, pic_array, binarized):
         try:
             with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
                 bin_array = pic_bin.asarray()
+        except FileNotFoundError:
+            pass
         else:
             bin_array = makeBinary(inFile, pic_array)
     else:
@@ -152,9 +154,9 @@ def loadCells(inFile):
     cellFile.close()
     return Cluster.clusters
 
-def saveClusters(inFile, clusters=Clusters.clusters):
+def saveClusters(inFile, clusters=Cluster.clusters):
     outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
-    pickle.dump(clusters)
+    pickle.dump(clusters, outFile)
     outFile.close()
 
 def saveCells():
@@ -182,7 +184,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
             boundary = findBoundaryPoints(bin_array)
             Cluster.pic = pic_array
             clusters = makeClusters(bin_array, boundary, stack_slice)
-            saveClusters(clusters)
+            saveClusters(inFile)
         finally:
             makeCells(clusters)
             saveCells()
@@ -193,7 +195,8 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
         boundary = findBoundaryPoints(bin_array)
         Cluster.pic = pic_array
         clusters = makeClusters(bin_array, boundary, stack_slice)
-        saveClusters(clusters)  
+        print("here???????????")
+        saveClusters(inFile)  
         makeCells(clusters) 
         saveCells()
         return pic_array
@@ -330,13 +333,14 @@ def parallel(prefix, binarized, clustered, split):
 
 parser = argparse.ArgumentParser(description="specify previous completion")
 
-parser.add_option('-b', '--binarized', dest="binarized", default=False)
-parser.add_option('-c', '--clustered', dest="clustered", default=False)
-parser.add_option('-s', '--split', dest="split", default=False)
+parser.add_argument('-b', '--binarized', dest="binarized", default=False)
+parser.add_argument('-c', '--clustered', dest="clustered", default=False)
+parser.add_argument('-s', '--split', dest="split", default=False)
 
 args = parser.parse_args()
 
-one_arg = lambda prefix: parallel(prefix, args.binarized, args.clustered, args.split)
+def one_arg(prefix):
+    parallel(prefix, args.binarized, args.clustered, args.split)
 
 
 test_prefixes = [
@@ -344,7 +348,7 @@ test_prefixes = [
 '/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f3_normal/eye1-'
 ]
 with Pool(2) as p: #multiprocessing.cpu_count()
-  p.map(parallel, test_prefixes)
+  p.map(one_arg, test_prefixes)
 
 # for p in prefixes:
 #     try:
