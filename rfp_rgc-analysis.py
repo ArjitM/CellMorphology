@@ -82,7 +82,7 @@ def makeBinary(inFile, pic_array):
 
     #pic_array = pic.asarray()
     #out_array = pic.asarray(); #copy dimensions
-    out_array = [ [None] * len(pic_array[1]) ] * len(pic_array)
+    out_array = [ [0] * len(pic_array[1]) ] * len(pic_array)
     global WHITE
     WHITE = skimage.dtype_limits(pic_array, True)[1]
     Binarize.WHITE = WHITE
@@ -91,7 +91,7 @@ def makeBinary(inFile, pic_array):
     regions = Compartmentalize(pic_array, 32)
 
     basicEdge(pic_array, out_array, regions) # preliminary edge detection via pixel gradient
-    out_array = np.array(out_array, dtype=np.bool_) # CONVERT TO boolean binary image
+    out_array = np.array(out_array, dtype=np.int8) # CONVERT TO boolean binary image
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
 
     regions.setNoiseCompartments(out_array, 0.95)
@@ -102,7 +102,7 @@ def makeBinary(inFile, pic_array):
     noise_handler = Noise(out_array, iterations=3, binary=True)
     noise_handler.reduce() #reduce salt and pepper noise incorrectly labelled as edges 
 
-    out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
+    #out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     return out_array
 
@@ -146,12 +146,9 @@ def superimposeBoundary(inFile, pic_array, boundary):
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Bound.tif'), bound)
 
 def loadClusters(inFile):
-    pass
-
-def loadCells(inFile):
-    cellFile = open(inFile.replace('.tif', '_clusters.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
+    clustFile = open(inFile.replace('.tif', '_clusters.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
     Cluster.clusters = pickle.load(cellFile)
-    cellFile.close()
+    clustFile.close()
     return Cluster.clusters
 
 def saveClusters(inFile, clusters=Cluster.clusters):
@@ -159,8 +156,13 @@ def saveClusters(inFile, clusters=Cluster.clusters):
     pickle.dump(clusters, outFile)
     outFile.close()
 
-def saveCells():
+def loadCells(inFile, stack_slice):
     pass
+
+def saveCells(inFile, stack_slice):
+    outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
+    pickle.dump(stack_slice, outFile)
+    outFile.close()
 
 
 def process_image(inFile, stack_slice, binarized, clustered, split):
@@ -177,6 +179,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
             return pic_array
 
     if clustered:
+        clusters = []
         try:
             clusters = loadClusters()
         except FileNotFoundError:
@@ -187,7 +190,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
             saveClusters(inFile)
         finally:
             makeCells(clusters)
-            saveCells()
+            saveCells(inFile, stack_slice)
             return pic_array
 
     else:
@@ -195,7 +198,6 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
         boundary = findBoundaryPoints(bin_array)
         Cluster.pic = pic_array
         clusters = makeClusters(bin_array, boundary, stack_slice)
-        print("here???????????")
         saveClusters(inFile)  
         makeCells(clusters) 
         saveCells()
@@ -293,13 +295,15 @@ def parallel(prefix, binarized, clustered, split):
             x += 1
     current_stack.collate_slices()
 
+    print(out_array)
     out_rgb = skimage.color.gray2rgb(out_array)
     out_rgb.fill(0)
     x = 0
 
     outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
 
-    colored = ([0, 0, WHITE], [0, WHITE, 0], [WHITE, 0, 0], [WHITE, WHITE, 0], [WHITE, 0, WHITE], [0, WHITE, WHITE], [WHITE, WHITE, WHITE])
+    colorLimit = skimage.dtype_limits(out_array, True)[1]
+    colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
 
     outFile.write("LARGEST CELLS ARE \n")
     for c in current_stack.large_Cells:

@@ -13,7 +13,7 @@ global WHITE
 WHITE = None #should be set by main main script
 
 global bin_WHITE
-bin_WHITE = 1 #boolean rendition
+bin_WHITE = 255 #boolean rendition
 
 
 class Compartment:
@@ -232,7 +232,8 @@ def basicEdge(pic_array, out_array, regions):
             elif left ==  WHITE:
                 out_array[i][j] = 0 #remove saturated pixels
             else:
-                out_array[i][j] = 1 #WHITE //using boolean representation to save memory
+                out_array[i][j] = bin_WHITE #WHITE //using boolean representation to save memory
+    return out_array
 
 def enhanceEdges(pic_array, out_array, regions):
     global borderMean
@@ -247,7 +248,7 @@ def enhanceEdges(pic_array, out_array, regions):
             elif pic_array[i][j] > local_border_avg:
                 out_array[i][j] = 0 #blackens blood vessels
             elif pic_array[i][j] < local_border_avg and regions.getCompartment(i, j).noise_compartment == False:
-                out_array[i][j] = 1 #WHITE
+                out_array[i][j] = bin_WHITE #WHITE
             #if regions.getCompartment(i, j).noise_compartment == True:
                #out_array[i][j] = WHITE // 2
 
