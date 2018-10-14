@@ -1,3 +1,4 @@
+import multiprocessing
 from multiprocessing import Pool
 
 import Binarize
@@ -7,7 +8,7 @@ from Cell_objects import *
 from Stack_objects import *
 import numpy as np
 from skimage import util
-import os
+import subprocess
 import copy
 import argparse
 import pickle
@@ -99,10 +100,12 @@ def makeBinary(inFile, pic_array):
     enhanceEdges(pic_array, out_array, regions) # use detected averages to guess missing edges
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
 
-    noise_handler = Noise(out_array, iterations=3, binary=True)
+    noise_handler = Noise(out_array, iterations=5, binary=True)
     noise_handler.reduce() #reduce salt and pepper noise incorrectly labelled as edges 
 
-    #out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
+    if '-rfp-' in inFile:
+        out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
+        
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     return out_array
 
@@ -124,7 +127,6 @@ def makeCells(clusters):
         c.kill()
 
 def getBinary(inFile, pic_array, binarized):
-
     if binarized:
         try:
             with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
@@ -149,7 +151,6 @@ def loadClusters(inFile):
     clustFile = open(inFile.replace('.tif', '_clusters.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
     Cluster.clusters = pickle.load(cellFile)
     clustFile.close()
-    return Cluster.clusters
 
 def saveClusters(inFile, clusters=Cluster.clusters):
     outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
@@ -157,11 +158,14 @@ def saveClusters(inFile, clusters=Cluster.clusters):
     outFile.close()
 
 def loadCells(inFile, stack_slice):
-    pass
+    cellFile = open(inFile.replace('.tif', '_clusters.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
+    stack_slice.cells = pickle.load(cellFile)
+    cellFile.close()
 
 def saveCells(inFile, stack_slice):
     outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
-    pickle.dump(stack_slice, outFile)
+    print(stack_slice)
+    pickle.dump(stack_slice.cells, outFile)
     outFile.close()
 
 
@@ -200,9 +204,8 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
         clusters = makeClusters(bin_array, boundary, stack_slice)
         saveClusters(inFile)  
         makeCells(clusters) 
-        saveCells()
+        saveCells(inFile, stack_slice)
         return pic_array
-
 
    # test = internalBorderTest(pic_array, out_array, boundary)
     #visualize_Clusters(clusters, out_array, inFile)
@@ -263,21 +266,23 @@ def parallel(prefix, binarized, clustered, split):
 
     current_stack = Stack()
     x = 1
-    out_array = []
-
     if split:
         binarized, clustered = True, True
     elif clustered:
         binarized = True
 
+    pic_arrays = []
     while True:
         try:
             stack_slice = Stack_slice(x, cells=[])
             inFile = prefix + str(x).rjust(4, '0') + '.tif'
             print("************",inFile)
-            os.system('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")))
+            try:
+                subprocess.run('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")))
+            except FileNotFoundError:
+                pass 
 
-            pic_array = process_image(inFile, stack_slice, binarized, clustered, split)
+            pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split))
 
             stack_slice.pruneCells(0.75)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
@@ -295,14 +300,13 @@ def parallel(prefix, binarized, clustered, split):
             x += 1
     current_stack.collate_slices()
 
-    print(out_array)
-    out_rgb = skimage.color.gray2rgb(out_array)
+    out_rgb = skimage.color.gray2rgb(pic_arrays[0])
     out_rgb.fill(0)
     x = 0
 
     outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
 
-    colorLimit = skimage.dtype_limits(out_array, True)[1]
+    colorLimit = 255
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
 
     outFile.write("LARGEST CELLS ARE \n")
@@ -318,28 +322,24 @@ def parallel(prefix, binarized, clustered, split):
 
     largest_3d = []
 
-    for ss in current_stack.stack_slices:
-        largest_3d.append(skimage.color.gray2rgb(out_array))
+    for ss, pic_array in zip(current_stack.stack_slices, pic_arrays):
+        largest_3d.append(skimage.color.gray2rgb(pic_arrays))
         largest_3d[-1].fill(0)
         color_index = ss.number % len(colored)
 
         for c in ss.finalizedCellSlice.cells:
-
             for b in c.boundary:
-
                 largest_3d[-1][b[0]][b[1]] = colored[color_index]
-
-        skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
-
+        #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
     largest_3d = np.array(largest_3d)
     skimage.external.tifffile.imsave('{0}largest3D.tif'.format(prefix), largest_3d)
 
 
 parser = argparse.ArgumentParser(description="specify previous completion")
 
-parser.add_argument('-b', '--binarized', dest="binarized", default=False)
-parser.add_argument('-c', '--clustered', dest="clustered", default=False)
-parser.add_argument('-s', '--split', dest="split", default=False)
+parser.add_argument('-b', '--binarized', dest="binarized", default=False, action="store_true")
+parser.add_argument('-c', '--clustered', dest="clustered", default=False, action="store_true")
+parser.add_argument('-s', '--split', dest="split", default=False, action="store_true")
 
 args = parser.parse_args()
 
@@ -351,7 +351,9 @@ test_prefixes = [
 '/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f2_normal/eye1-',
 '/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f3_normal/eye1-'
 ]
-with Pool(2) as p: #multiprocessing.cpu_count()
+
+cpus = multiprocessing.cpu_count()
+with Pool(2) as p:
   p.map(one_arg, test_prefixes)
 
 # for p in prefixes:
