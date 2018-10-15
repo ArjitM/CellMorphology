@@ -158,12 +158,12 @@ def saveClusters(inFile, clusters=Cluster.clusters):
     outFile.close()
 
 def loadCells(inFile, stack_slice):
-    cellFile = open(inFile.replace('.tif', '_clusters.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
+    cellFile = open(inFile.replace('.tif', '_cells.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
     stack_slice.cells = pickle.load(cellFile)
     cellFile.close()
 
 def saveCells(inFile, stack_slice):
-    outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
+    outFile = open(inFile.replace('.tif', '_cells.pkl'), 'wb')
     print(stack_slice)
     pickle.dump(stack_slice.cells, outFile)
     outFile.close()
