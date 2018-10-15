@@ -410,7 +410,7 @@ def one_arg(prefix):
 
 cpus = multiprocessing.cpu_count()
 with Pool(cpus) as p:
-  p.map(one_arg, test_prefixes)
+  p.map(one_arg, prefixes)
 
 # for p in prefixes:
 #     try:
