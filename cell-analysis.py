@@ -105,7 +105,7 @@ def makeBinary(inFile, pic_array):
 
     if '-rfp-' in inFile:
         out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
-        
+
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     return out_array
 
@@ -238,29 +238,90 @@ def visualize_Clusters(clusters, out_array, inFile):
 
 
 prefixes = [
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece1-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece2-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece3-rfp-normal/piece-',
+'RD1/expt_1/piece1-rfp-normal/piece-',
+'RD1/expt_1/piece2-rfp-normal/piece-',
+'RD1/expt_1/piece3-rfp-normal/piece-',
+'RD1-P2X7KO/expt_1/piece1-rfp-normal/piece-',
+'RD1-P2X7KO/expt_1/piece2-rfp-normal/piece-',
+'RD1-P2X7KO/expt_1/piece3-rfp-normal/piece-',
+'WT/expt_1/piece1-rfp-normal/piece-',
+'WT/expt_1/piece2-rfp-normal/piece-',
+'WT/expt_1/piece3-rfp-normal/piece-',
 
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece1-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece2-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/WT/piece3-rfp-normal/piece-',
+'RD1/expt_2/piece1-rfp-normal/piece-',
+'RD1/expt_2/piece2-rfp-normal/piece-',
+'RD1/expt_2/piece3-rfp-normal/piece-',
+'RD1-P2X7KO/expt_2/piece1-rfp-normal/piece-',
+'RD1-P2X7KO/expt_2/piece2-rfp-normal/piece-',
+'RD1-P2X7KO/expt_2/piece3-rfp-normal/piece-',
+'WT/expt_2/piece1-rfp-normal/piece-',
+'WT/expt_2/piece2-rfp-normal/piece-',
+'WT/expt_2/piece3-rfp-normal/piece-',
 
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece1-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece2-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/RD1/piece3-rfp-normal/piece-',
+'RD1/expt_3/piece1-rfp-normal/piece-',
+'RD1/expt_3/piece2-rfp-normal/piece-',
+'RD1/expt_3/piece3-rfp-normal/piece-',
+'RD1-P2X7KO/expt_3/piece1-rfp-normal/piece-',
+'RD1-P2X7KO/expt_3/piece2-rfp-normal/piece-',
+'RD1-P2X7KO/expt_3/piece3-rfp-normal/piece-',
+'WT/expt_3/piece1-rfp-normal/piece-',
+'WT/expt_3/piece2-rfp-normal/piece-',
+'WT/expt_3/piece3-rfp-normal/piece-',
 
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/WT/piece1-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/WT/piece2-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 2/WT/piece3-rfp-normal/piece-',
+'vit_A_free/Mouse 1/eye1p1f2_normal/piece-',
+'vit_A_free/Mouse 1/eye1p1f3_normal/piece-',
+'vit_A_free/Mouse 1/eye1p2f1_normal/piece-',
+'vit_A_free/Mouse 1/eye1p2f2_normal/piece-',
+'vit_A_free/Mouse 1/eye1p2f3_normal/piece-',
+'vit_A_free/Mouse 1/eye2p1f1_normal/piece-',
+'vit_A_free/Mouse 1/eye2p1f2_normal/piece-',
+'vit_A_free/Mouse 1/eye2p1f3_normal/piece-',
+'vit_A_free/Mouse 1/eye1p1f1_normal/piece-',
 
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece1-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece2-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/RD1/piece3-rfp-normal/piece-',
+'vit_A_free/Mouse 2/eye1p1f1_normal/piece-',
+'vit_A_free/Mouse 2/eye1p1f2_normal/piece-',
+'vit_A_free/Mouse 2/eye1p1f3_normal/piece-',
+'vit_A_free/Mouse 2/eye1p2f1_normal/piece-',
+'vit_A_free/Mouse 2/eye1p2f2_normal/piece-',
 
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece1-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece2-rfp-normal/piece-',
-'/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 3/WT/piece3-rfp-normal/piece-']
+'vit_A_free/Mouse 3/eye1p1f1_normal/piece-',
+'vit_A_free/Mouse 3/eye1p1f2_normal/piece-',
+'vit_A_free/Mouse 3/eye1p1f3_normal/piece-',
+'vit_A_free/Mouse 3/eye1p2f1_normal/piece-',
+'vit_A_free/Mouse 3/eye1p2f2_normal/piece-',
+'vit_A_free/Mouse 3/eye1p2f3_normal/piece-',
+
+'RD1/expt_1/piece1-gfp-normal/piece-',
+'RD1/expt_1/piece2-gfp-normal/piece-',
+'RD1/expt_1/piece3-gfp-normal/piece-',
+'RD1-P2X7KO/expt_1/piece1-gfp-normal/piece-',
+'RD1-P2X7KO/expt_1/piece2-gfp-normal/piece-',
+'RD1-P2X7KO/expt_1/piece3-gfp-normal/piece-',
+'WT/expt_1/piece1-gfp-normal/piece-',
+'WT/expt_1/piece2-gfp-normal/piece-',
+'WT/expt_1/piece3-gfp-normal/piece-',
+
+'RD1/expt_2/piece1-gfp-normal/piece-',
+'RD1/expt_2/piece2-gfp-normal/piece-',
+'RD1/expt_2/piece3-gfp-normal/piece-',
+'RD1-P2X7KO/expt_2/piece1-gfp-normal/piece-',
+'RD1-P2X7KO/expt_2/piece2-gfp-normal/piece-',
+'RD1-P2X7KO/expt_2/piece3-gfp-normal/piece-',
+'WT/expt_2/piece1-gfp-normal/piece-',
+'WT/expt_2/piece2-gfp-normal/piece-',
+'WT/expt_2/piece3-gfp-normal/piece-',
+
+'RD1/expt_3/piece1-gfp-normal/piece-',
+'RD1/expt_3/piece2-gfp-normal/piece-',
+'RD1/expt_3/piece3-gfp-normal/piece-',
+'RD1-P2X7KO/expt_3/piece1-gfp-normal/piece-',
+'RD1-P2X7KO/expt_3/piece2-gfp-normal/piece-',
+'RD1-P2X7KO/expt_3/piece3-gfp-normal/piece-',
+'WT/expt_3/piece1-gfp-normal/piece-',
+'WT/expt_3/piece2-gfp-normal/piece-',
+'WT/expt_3/piece3-gfp-normal/piece-'
+
+]
 
 def parallel(prefix, binarized, clustered, split):
 
@@ -345,15 +406,10 @@ args = parser.parse_args()
 
 def one_arg(prefix):
     parallel(prefix, args.binarized, args.clustered, args.split)
-
-
-test_prefixes = [
-'/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f2_normal/eye1-',
-'/Users/arjitmisra/Documents/Kramer Lab/timetest/eye1p1f3_normal/eye1-'
-]
+    subprocess.run("rclone copy {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")))
 
 cpus = multiprocessing.cpu_count()
-with Pool(2) as p:
+with Pool(cpus) as p:
   p.map(one_arg, test_prefixes)
 
 # for p in prefixes:
