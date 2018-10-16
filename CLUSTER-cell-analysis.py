@@ -92,7 +92,7 @@ def makeBinary(inFile, pic_array):
     regions = Compartmentalize(pic_array, 32)
 
     basicEdge(pic_array, out_array, regions) # preliminary edge detection via pixel gradient
-    &^T&^R&^%&^out_array = np.array(out_array, dtype=np.int8) # CONVERT TO boolean binary image
+    out_array = np.array(out_array, dtype=np.int8) # CONVERT TO boolean binary image
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
 
     regions.setNoiseCompartments(out_array, 0.95)
@@ -409,14 +409,10 @@ def one_arg(prefix):
         parallel(prefix, args.binarized, args.clustered, args.split)
     except Exception as e:
         print("Error occured in {0}: {1}".format(prefix, e))
-        logging.error(traceback.format_exc())
     try:
         subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")))
-    except Exception as e:
+    except:
         print("NOT TRANSFERRED")
-        logging.error(traceback.format_exc())
-
-
 
 cpus = multiprocessing.cpu_count()
 with Pool(cpus) as p:

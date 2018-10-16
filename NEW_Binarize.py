@@ -13,7 +13,7 @@ global WHITE
 WHITE = None #should be set by main main script
 
 global bin_WHITE
-bin_WHITE = WHITE #same as input rendition changing to uint8 requires new threshold parameters!!
+bin_WHITE = 255 #boolean rendition
 
 
 class Compartment:

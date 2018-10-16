@@ -12,6 +12,8 @@ import subprocess
 import copy
 import argparse
 import pickle
+import logging
+import traceback
 
 def makeClusters(binary, boundary, stack_slice):
     
@@ -87,12 +89,14 @@ def makeBinary(inFile, pic_array):
     global WHITE
     WHITE = skimage.dtype_limits(pic_array, True)[1]
     Binarize.WHITE = WHITE
+    Binarize.bin_WHITE = WHITE
     Cell_objects.WHITE = WHITE
 
     regions = Compartmentalize(pic_array, 32)
 
+    #out_array = copy.deepcopy(pic_array) #
+    out_array = np.array(out_array, dtype=pic_array.dtype.type) # keep same image type
     basicEdge(pic_array, out_array, regions) # preliminary edge detection via pixel gradient
-    &^T&^R&^%&^out_array = np.array(out_array, dtype=np.int8) # CONVERT TO boolean binary image
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
 
     regions.setNoiseCompartments(out_array, 0.95)
@@ -100,11 +104,11 @@ def makeBinary(inFile, pic_array):
     enhanceEdges(pic_array, out_array, regions) # use detected averages to guess missing edges
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
 
-    noise_handler = Noise(out_array, iterations=5, binary=True)
+    noise_handler = Noise(out_array, iterations=3, binary=True)
     noise_handler.reduce() #reduce salt and pepper noise incorrectly labelled as edges 
 
-    if '-rfp-' in inFile:
-        out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
+    # if '-rfp-' in inFile:
+    #     out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     return out_array
@@ -164,7 +168,6 @@ def loadCells(inFile, stack_slice):
 
 def saveCells(inFile, stack_slice):
     outFile = open(inFile.replace('.tif', '_cells.pkl'), 'wb')
-    print(stack_slice)
     pickle.dump(stack_slice.cells, outFile)
     outFile.close()
 
@@ -238,89 +241,82 @@ def visualize_Clusters(clusters, out_array, inFile):
 
 
 prefixes = [
-'RD1/expt_1/piece1-rfp-normal/piece-',
-'RD1/expt_1/piece2-rfp-normal/piece-',
-'RD1/expt_1/piece3-rfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece1-rfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece2-rfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece3-rfp-normal/piece-',
-'WT/expt_1/piece1-rfp-normal/piece-',
-'WT/expt_1/piece2-rfp-normal/piece-',
-'WT/expt_1/piece3-rfp-normal/piece-',
+'../Cell Size Project/RD1/expt_1/piece1-rfp-normal/piece-',
+'../Cell Size Project/RD1/expt_1/piece2-rfp-normal/piece-',
+'../Cell Size Project/RD1/expt_1/piece3-rfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_1/piece1-rfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_1/piece2-rfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_1/piece3-rfp-normal/piece-',
+'../Cell Size Project/WT/expt_1/piece1-rfp-normal/piece-',
+'../Cell Size Project/WT/expt_1/piece2-rfp-normal/piece-',
+'../Cell Size Project/WT/expt_1/piece3-rfp-normal/piece-',
+'../Cell Size Project/RD1/expt_2/piece1-rfp-normal/piece-',
+'../Cell Size Project/RD1/expt_2/piece2-rfp-normal/piece-',
+'../Cell Size Project/RD1/expt_2/piece3-rfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_2/piece1-rfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_2/piece2-rfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_2/piece3-rfp-normal/piece-',
+'../Cell Size Project/WT/expt_2/piece1-rfp-normal/piece-',
+'../Cell Size Project/WT/expt_2/piece2-rfp-normal/piece-',
+'../Cell Size Project/WT/expt_2/piece3-rfp-normal/piece-',
+'../Cell Size Project/RD1/expt_3/piece1-rfp-normal/piece-',
+'../Cell Size Project/RD1/expt_3/piece2-rfp-normal/piece-',
+'../Cell Size Project/RD1/expt_3/piece3-rfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_3/piece1-rfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_3/piece2-rfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_3/piece3-rfp-normal/piece-',
+'../Cell Size Project/WT/expt_3/piece1-rfp-normal/piece-',
+'../Cell Size Project/WT/expt_3/piece2-rfp-normal/piece-',
+'../Cell Size Project/WT/expt_3/piece3-rfp-normal/piece-',
 
-'RD1/expt_2/piece1-rfp-normal/piece-',
-'RD1/expt_2/piece2-rfp-normal/piece-',
-'RD1/expt_2/piece3-rfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece1-rfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece2-rfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece3-rfp-normal/piece-',
-'WT/expt_2/piece1-rfp-normal/piece-',
-'WT/expt_2/piece2-rfp-normal/piece-',
-'WT/expt_2/piece3-rfp-normal/piece-',
+'../vit A/vit_A_free/Mouse 1/eye1p1f2_normal/piece-',
+'../vit A/vit_A_free/Mouse 1/eye1p1f3_normal/piece-',
+'../vit A/vit_A_free/Mouse 1/eye1p2f1_normal/piece-',
+'../vit A/vit_A_free/Mouse 1/eye1p2f2_normal/piece-',
+'../vit A/vit_A_free/Mouse 1/eye1p2f3_normal/piece-',
+'../vit A/vit_A_free/Mouse 1/eye2p1f1_normal/piece-',
+'../vit A/vit_A_free/Mouse 1/eye2p1f2_normal/piece-',
+'../vit A/vit_A_free/Mouse 1/eye2p1f3_normal/piece-',
+'../vit A/vit_A_free/Mouse 1/eye1p1f1_normal/piece-',
+'../vit A/vit_A_free/Mouse 2/eye1p1f1_normal/piece-',
+'../vit A/vit_A_free/Mouse 2/eye1p1f2_normal/piece-',
+'../vit A/vit_A_free/Mouse 2/eye1p1f3_normal/piece-',
+'../vit A/vit_A_free/Mouse 2/eye1p2f1_normal/piece-',
+'../vit A/vit_A_free/Mouse 2/eye1p2f2_normal/piece-',
+'../vit A/vit_A_free/Mouse 3/eye1p1f1_normal/piece-',
+'../vit A/vit_A_free/Mouse 3/eye1p1f2_normal/piece-',
+'../vit A/vit_A_free/Mouse 3/eye1p1f3_normal/piece-',
+'../vit A/vit_A_free/Mouse 3/eye1p2f1_normal/piece-',
+'../vit A/vit_A_free/Mouse 3/eye1p2f2_normal/piece-',
+'../vit A/vit_A_free/Mouse 3/eye1p2f3_normal/piece-',
 
-'RD1/expt_3/piece1-rfp-normal/piece-',
-'RD1/expt_3/piece2-rfp-normal/piece-',
-'RD1/expt_3/piece3-rfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece1-rfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece2-rfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece3-rfp-normal/piece-',
-'WT/expt_3/piece1-rfp-normal/piece-',
-'WT/expt_3/piece2-rfp-normal/piece-',
-'WT/expt_3/piece3-rfp-normal/piece-',
-
-'vit_A_free/Mouse 1/eye1p1f2_normal/piece-',
-'vit_A_free/Mouse 1/eye1p1f3_normal/piece-',
-'vit_A_free/Mouse 1/eye1p2f1_normal/piece-',
-'vit_A_free/Mouse 1/eye1p2f2_normal/piece-',
-'vit_A_free/Mouse 1/eye1p2f3_normal/piece-',
-'vit_A_free/Mouse 1/eye2p1f1_normal/piece-',
-'vit_A_free/Mouse 1/eye2p1f2_normal/piece-',
-'vit_A_free/Mouse 1/eye2p1f3_normal/piece-',
-'vit_A_free/Mouse 1/eye1p1f1_normal/piece-',
-
-'vit_A_free/Mouse 2/eye1p1f1_normal/piece-',
-'vit_A_free/Mouse 2/eye1p1f2_normal/piece-',
-'vit_A_free/Mouse 2/eye1p1f3_normal/piece-',
-'vit_A_free/Mouse 2/eye1p2f1_normal/piece-',
-'vit_A_free/Mouse 2/eye1p2f2_normal/piece-',
-
-'vit_A_free/Mouse 3/eye1p1f1_normal/piece-',
-'vit_A_free/Mouse 3/eye1p1f2_normal/piece-',
-'vit_A_free/Mouse 3/eye1p1f3_normal/piece-',
-'vit_A_free/Mouse 3/eye1p2f1_normal/piece-',
-'vit_A_free/Mouse 3/eye1p2f2_normal/piece-',
-'vit_A_free/Mouse 3/eye1p2f3_normal/piece-',
-
-'RD1/expt_1/piece1-gfp-normal/piece-',
-'RD1/expt_1/piece2-gfp-normal/piece-',
-'RD1/expt_1/piece3-gfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece1-gfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece2-gfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece3-gfp-normal/piece-',
-'WT/expt_1/piece1-gfp-normal/piece-',
-'WT/expt_1/piece2-gfp-normal/piece-',
-'WT/expt_1/piece3-gfp-normal/piece-',
-
-'RD1/expt_2/piece1-gfp-normal/piece-',
-'RD1/expt_2/piece2-gfp-normal/piece-',
-'RD1/expt_2/piece3-gfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece1-gfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece2-gfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece3-gfp-normal/piece-',
-'WT/expt_2/piece1-gfp-normal/piece-',
-'WT/expt_2/piece2-gfp-normal/piece-',
-'WT/expt_2/piece3-gfp-normal/piece-',
-
-'RD1/expt_3/piece1-gfp-normal/piece-',
-'RD1/expt_3/piece2-gfp-normal/piece-',
-'RD1/expt_3/piece3-gfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece1-gfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece2-gfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece3-gfp-normal/piece-',
-'WT/expt_3/piece1-gfp-normal/piece-',
-'WT/expt_3/piece2-gfp-normal/piece-',
-'WT/expt_3/piece3-gfp-normal/piece-'
-
+'../Cell Size Project/RD1/expt_1/piece1-gfp-normal/piece-',
+'../Cell Size Project/RD1/expt_1/piece2-gfp-normal/piece-',
+'../Cell Size Project/RD1/expt_1/piece3-gfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_1/piece1-gfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_1/piece2-gfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_1/piece3-gfp-normal/piece-',
+'../Cell Size Project/WT/expt_1/piece1-gfp-normal/piece-',
+'../Cell Size Project/WT/expt_1/piece2-gfp-normal/piece-',
+'../Cell Size Project/WT/expt_1/piece3-gfp-normal/piece-',
+'../Cell Size Project/RD1/expt_2/piece1-gfp-normal/piece-',
+'../Cell Size Project/RD1/expt_2/piece2-gfp-normal/piece-',
+'../Cell Size Project/RD1/expt_2/piece3-gfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_2/piece1-gfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_2/piece2-gfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_2/piece3-gfp-normal/piece-',
+'../Cell Size Project/WT/expt_2/piece1-gfp-normal/piece-',
+'../Cell Size Project/WT/expt_2/piece2-gfp-normal/piece-',
+'../Cell Size Project/WT/expt_2/piece3-gfp-normal/piece-',
+'../Cell Size Project/RD1/expt_3/piece1-gfp-normal/piece-',
+'../Cell Size Project/RD1/expt_3/piece2-gfp-normal/piece-',
+'../Cell Size Project/RD1/expt_3/piece3-gfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_3/piece1-gfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_3/piece2-gfp-normal/piece-',
+'../Cell Size Project/RD1-P2X7KO/expt_3/piece3-gfp-normal/piece-',
+'../Cell Size Project/WT/expt_3/piece1-gfp-normal/piece-',
+'../Cell Size Project/WT/expt_3/piece2-gfp-normal/piece-',
+'../Cell Size Project/WT/expt_3/piece3-gfp-normal/piece-'
 ]
 
 def parallel(prefix, binarized, clustered, split):
@@ -410,17 +406,13 @@ def one_arg(prefix):
     except Exception as e:
         print("Error occured in {0}: {1}".format(prefix, e))
         logging.error(traceback.format_exc())
-    try:
-        subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")))
-    except Exception as e:
-        print("NOT TRANSFERRED")
-        logging.error(traceback.format_exc())
 
+    #finally:
+        #subprocess.run("rclone copy {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")))
 
-
-cpus = multiprocessing.cpu_count()
-with Pool(cpus) as p:
-  p.map(one_arg, prefixes)
+# cpus = multiprocessing.cpu_count()
+# with Pool(1) as p:
+#   p.map(one_arg, prefixes[:4])
 
 # for p in prefixes:
 #     try:
@@ -428,7 +420,7 @@ with Pool(cpus) as p:
 #     except:
 #         print('\n\n{0} WAS NOT PROCESSED\n\n'.format(p))
 
-#parallel('/Users/arjitmisra/Documents/Kramer Lab/Cell Size Project/experiment 1/RD1/piece1-rfp-normal/piece-')
+one_arg(prefixes[0])
 
 
 
