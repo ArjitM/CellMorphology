@@ -446,7 +446,7 @@ class Cell(Cluster):
 
     def roundness(self):
         circum = len(self.boundary)
-        ideal = circum / math.pi
+        ideal = circum / (2 * math.pi)
         # k = circum // 8
         # opposing = [[0,4], [1,5], [2,6], [3,7]]
         # diameters = []
