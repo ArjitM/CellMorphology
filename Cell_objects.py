@@ -359,9 +359,10 @@ class Cell(Cluster):
         super().__init__(binary, boundary, stack_slice, internalEdges)
         #stack_slice.addCell(self)
         if not self.internalEdges:
+            self.interior = [] #this is updated by the area function
             self.area = self.area()
             self.roundness = self.roundness()
-            self.colored = skimage.color.grey2rgb(self.binary)
+            # self.colored = skimage.color.grey2rgb(self.binary)
 
 
     def pointWithin(self, point):
@@ -439,6 +440,7 @@ class Cell(Cluster):
             else:
                 for xp in x_pairs:
                     area += (xp[1][1] - xp[0][1] + 1)
+                    self.interior.extend([(xp[0][0], k) for k in range(xp[0][1], xp[1][1]+1)])
         return area
 
 

@@ -72,8 +72,10 @@ def makeClusters(binary, boundary, stack_slice):
             else:
                 current.append(neighbor)
                 boundary.remove(neighbor)
+                #print("cluster extended")
         if len(current) > 12 and len(current) < 1000:
             clusterBounds.append(current)
+            #print("###############################cluster appended")
 
     clusters = []
     for c in clusterBounds:
@@ -107,14 +109,14 @@ def makeBinary(inFile, pic_array):
     noise_handler = Noise(out_array, iterations=3, binary=True)
     noise_handler.reduce() #reduce salt and pepper noise incorrectly labelled as edges 
 
-    # if '-rfp-' in inFile:
-    #     out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
+    if '-rfp-' in inFile:
+         out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     return out_array
 
 
-def makeCells(clusters):
+def makeCells(inFile, clusters=Cluster.clusters):
     noise_clusters = []
     i = -1
     for c in clusters:
@@ -129,6 +131,9 @@ def makeCells(clusters):
             c.splitByEdges()
     for c in noise_clusters:
         c.kill()
+    if Cluster.clusters:
+        skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), Cluster.clusters[0].binary)
+
 
 def getBinary(inFile, pic_array, binarized):
     if binarized:
@@ -157,6 +162,7 @@ def loadClusters(inFile):
     clustFile.close()
 
 def saveClusters(inFile, clusters=Cluster.clusters):
+    print("clusters made")
     outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
     pickle.dump(clusters, outFile)
     outFile.close()
@@ -167,6 +173,7 @@ def loadCells(inFile, stack_slice):
     cellFile.close()
 
 def saveCells(inFile, stack_slice):
+    print("cells made")
     outFile = open(inFile.replace('.tif', '_cells.pkl'), 'wb')
     pickle.dump(stack_slice.cells, outFile)
     outFile.close()
@@ -196,7 +203,8 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
             clusters = makeClusters(bin_array, boundary, stack_slice)
             saveClusters(inFile)
         finally:
-            makeCells(clusters)
+            superimposeBoundary(inFile, pic_array, boundary)
+            makeCells(inFile, clusters)
             saveCells(inFile, stack_slice)
             return pic_array
 
@@ -206,7 +214,8 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
         Cluster.pic = pic_array
         clusters = makeClusters(bin_array, boundary, stack_slice)
         saveClusters(inFile)  
-        makeCells(clusters) 
+        superimposeBoundary(inFile, pic_array, boundary)
+        makeCells(inFile, clusters) 
         saveCells(inFile, stack_slice)
         return pic_array
 
@@ -322,7 +331,7 @@ prefixes = [
 def parallel(prefix, binarized, clustered, split):
 
     current_stack = Stack()
-    x = 1
+    x = 20
     if split:
         binarized, clustered = True, True
     elif clustered:
@@ -333,7 +342,6 @@ def parallel(prefix, binarized, clustered, split):
         try:
             stack_slice = Stack_slice(x, cells=[])
             inFile = prefix + str(x).rjust(4, '0') + '.tif'
-            print("************",inFile)
             try:
                 subprocess.run('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")))
             except FileNotFoundError:
@@ -355,16 +363,19 @@ def parallel(prefix, binarized, clustered, split):
         else:
             print(prefix)
             x += 1
-    current_stack.collate_slices()
+    overlay(current_stack, prefix, pic_arrays)
 
+def overlay(current_stack, prefix, pic_arrays):
+
+    current_stack.collate_slices()
     out_rgb = skimage.color.gray2rgb(pic_arrays[0])
     out_rgb.fill(0)
     x = 0
-
     outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
 
-    colorLimit = 255
+    colorLimit = WHITE
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
+    cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]
 
     outFile.write("LARGEST CELLS ARE \n")
     for c in current_stack.large_Cells:
@@ -373,23 +384,30 @@ def parallel(prefix, binarized, clustered, split):
         color_index = c.stack_slice.number % len(colored)
         for b in c.boundary:
             out_rgb[b[0]][b[1]] = colored[color_index]
-
     outFile.close()
     skimage.external.tifffile.imsave(prefix + 'largest.tif', out_rgb)
-
+    
     largest_3d = []
-
     for ss, pic_array in zip(current_stack.stack_slices, pic_arrays):
         largest_3d.append(skimage.color.gray2rgb(pic_array))
         largest_3d[-1].fill(0)
         color_index = ss.number % len(colored)
 
-        for c in ss.finalizedCellSlice.cells:
+        for c in ss.cells:
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = colored[color_index]
+                largest_3d[-1][b[0]][b[1]] = magenta
+
+        for c in ss.finalizedCellSlice.cells:
+
+            for b in c.boundary:
+                largest_3d[-1][b[0]][b[1]] = magenta
+            for b in c.interior:
+                largest_3d[-1][b[0]][b[1]] = pic_array[b[0]][b[1]] * 0.6 + 0.4 * cyan
+                #colored[color_index]
         #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
     largest_3d = np.array(largest_3d)
     skimage.external.tifffile.imsave('{0}largest3D.tif'.format(prefix), largest_3d)
+
 
 
 parser = argparse.ArgumentParser(description="specify previous completion")
@@ -410,9 +428,9 @@ def one_arg(prefix):
     #finally:
         #subprocess.run("rclone copy {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")))
 
-# cpus = multiprocessing.cpu_count()
-# with Pool(1) as p:
-#   p.map(one_arg, prefixes[:4])
+cpus = multiprocessing.cpu_count()
+with Pool(1) as p:
+  p.map(one_arg, prefixes[:4])
 
 # for p in prefixes:
 #     try:
@@ -420,7 +438,7 @@ def one_arg(prefix):
 #     except:
 #         print('\n\n{0} WAS NOT PROCESSED\n\n'.format(p))
 
-one_arg(prefixes[0])
+#one_arg(prefixes[0])
 
 
 

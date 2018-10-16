@@ -51,7 +51,7 @@ class Stack:
                     if hits > 1:
                         break
 
-                if hits > 1: #limit reached
+                if hits > 1 or cell.internalEdges: #limit reached
                     large_replace = None
                     continue
 
