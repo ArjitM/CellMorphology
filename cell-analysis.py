@@ -113,6 +113,7 @@ def makeBinary(inFile, pic_array):
          out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
+    print("***made binary")
     return out_array
 
 
@@ -140,13 +141,12 @@ def getBinary(inFile, pic_array, binarized):
         try:
             with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
                 bin_array = pic_bin.asarray()
-        except FileNotFoundError:
+        except (FileNotFoundError, EOFError):
             pass
         else:
             bin_array = makeBinary(inFile, pic_array)
     else:
         bin_array = makeBinary(inFile, pic_array)
-    print("***made binary")
     return bin_array
 
 
@@ -187,7 +187,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
     if split: #breakpoint to test stack collation
         try:
             loadCells(inFile, stack_slice)
-        except FileNotFoundError:
+        except (FileNotFoundError, EOFError):
             clustered = True
         else:
             return pic_array
@@ -196,7 +196,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
         clusters = []
         try:
             clusters = loadClusters(inFile)
-        except FileNotFoundError:
+        except (FileNotFoundError, EOFError):
             bin_array = getBinary(inFile, pic_array, binarized=True)
             boundary = findBoundaryPoints(bin_array)
             superimposeBoundary(inFile, pic_array, boundary)
@@ -250,82 +250,80 @@ def visualize_Clusters(clusters, out_array, inFile):
 
 
 prefixes = [
-'RD1/expt_1/piece1-rfp-normal/piece-',
-'RD1/expt_1/piece2-rfp-normal/piece-',
-'RD1/expt_1/piece3-rfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece1-rfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece2-rfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece3-rfp-normal/piece-',
-'WT/expt_1/piece1-rfp-normal/piece-',
-'WT/expt_1/piece2-rfp-normal/piece-',
-'WT/expt_1/piece3-rfp-normal/piece-',
-'RD1/expt_2/piece1-rfp-normal/piece-',
-'RD1/expt_2/piece2-rfp-normal/piece-',
-'RD1/expt_2/piece3-rfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece1-rfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece2-rfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece3-rfp-normal/piece-',
-'WT/expt_2/piece1-rfp-normal/piece-',
-'WT/expt_2/piece2-rfp-normal/piece-',
-'WT/expt_2/piece3-rfp-normal/piece-',
-'RD1/expt_3/piece1-rfp-normal/piece-',
-'RD1/expt_3/piece2-rfp-normal/piece-',
-'RD1/expt_3/piece3-rfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece1-rfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece2-rfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece3-rfp-normal/piece-',
-'WT/expt_3/piece1-rfp-normal/piece-',
-'WT/expt_3/piece2-rfp-normal/piece-',
-'WT/expt_3/piece3-rfp-normal/piece-',
-
-'vit_A_free/Mouse 1/eye1p1f2_normal/piece-',
-'vit_A_free/Mouse 1/eye1p1f3_normal/piece-',
-'vit_A_free/Mouse 1/eye1p2f1_normal/piece-',
-'vit_A_free/Mouse 1/eye1p2f2_normal/piece-',
-'vit_A_free/Mouse 1/eye1p2f3_normal/piece-',
-'vit_A_free/Mouse 1/eye2p1f1_normal/piece-',
-'vit_A_free/Mouse 1/eye2p1f2_normal/piece-',
-'vit_A_free/Mouse 1/eye2p1f3_normal/piece-',
-'vit_A_free/Mouse 1/eye1p1f1_normal/piece-',
-'vit_A_free/Mouse 2/eye1p1f1_normal/piece-',
-'vit_A_free/Mouse 2/eye1p1f2_normal/piece-',
-'vit_A_free/Mouse 2/eye1p1f3_normal/piece-',
-'vit_A_free/Mouse 2/eye1p2f1_normal/piece-',
-'vit_A_free/Mouse 2/eye1p2f2_normal/piece-',
-'vit_A_free/Mouse 3/eye1p1f1_normal/piece-',
-'vit_A_free/Mouse 3/eye1p1f2_normal/piece-',
-'vit_A_free/Mouse 3/eye1p1f3_normal/piece-',
-'vit_A_free/Mouse 3/eye1p2f1_normal/piece-',
-'vit_A_free/Mouse 3/eye1p2f2_normal/piece-',
-'vit_A_free/Mouse 3/eye1p2f3_normal/piece-',
-
-'RD1/expt_1/piece1-gfp-normal/piece-',
-'RD1/expt_1/piece2-gfp-normal/piece-',
-'RD1/expt_1/piece3-gfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece1-gfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece2-gfp-normal/piece-',
-'RD1-P2X7KO/expt_1/piece3-gfp-normal/piece-',
-'WT/expt_1/piece1-gfp-normal/piece-',
-'WT/expt_1/piece2-gfp-normal/piece-',
-'WT/expt_1/piece3-gfp-normal/piece-',
-'RD1/expt_2/piece1-gfp-normal/piece-',
-'RD1/expt_2/piece2-gfp-normal/piece-',
-'RD1/expt_2/piece3-gfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece1-gfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece2-gfp-normal/piece-',
-'RD1-P2X7KO/expt_2/piece3-gfp-normal/piece-',
-'WT/expt_2/piece1-gfp-normal/piece-',
-'WT/expt_2/piece2-gfp-normal/piece-',
-'WT/expt_2/piece3-gfp-normal/piece-',
-'RD1/expt_3/piece1-gfp-normal/piece-',
-'RD1/expt_3/piece2-gfp-normal/piece-',
-'RD1/expt_3/piece3-gfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece1-gfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece2-gfp-normal/piece-',
-'RD1-P2X7KO/expt_3/piece3-gfp-normal/piece-',
-'WT/expt_3/piece1-gfp-normal/piece-',
-'WT/expt_3/piece2-gfp-normal/piece-',
-'WT/expt_3/piece3-gfp-normal/piece-'
+'/global/scratch/arjitmisra/RD1/expt_1/piece1-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_1/piece2-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_1/piece3-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_1/piece1-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_1/piece2-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_1/piece3-rfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_1/piece1-rfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_1/piece2-rfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_1/piece3-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_2/piece1-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_2/piece2-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_2/piece3-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_2/piece1-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_2/piece2-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_2/piece3-rfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_2/piece1-rfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_2/piece2-rfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_2/piece3-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_3/piece1-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_3/piece2-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_3/piece3-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_3/piece1-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_3/piece2-rfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_3/piece3-rfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_3/piece1-rfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_3/piece2-rfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_3/piece3_rfp-normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_1/eye1p1f2_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_1/eye1p1f3_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_1/eye1p2f1_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_1/eye1p2f2_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_1/eye1p2f3_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_1/eye2p1f1_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_1/eye2p1f2_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_1/eye2p1f3_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_1/eye1p1f1_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_2/eye1p1f1_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_2/eye1p1f2_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_2/eye1p1f3_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_2/eye1p2f1_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_2/eye1p2f2_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_3/eye1p1f1_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_3/eye1p1f2_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_3/eye1p1f3_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_3/eye1p2f1_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse_3/eye1p2f2_normal/piece-',
+'/global/scratch/arjitmisra/vit_A_free/Mouse 3/eye1p2f3_normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_1/piece1-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_1/piece2-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_1/piece3-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_1/piece1-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_1/piece2-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_1/piece3-gfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_1/piece1-gfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_1/piece2-gfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_1/piece3-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_2/piece1-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_2/piece2-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_2/piece3-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_2/piece1-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_2/piece2-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_2/piece3-gfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_2/piece1-gfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_2/piece2-gfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_2/piece3-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_3/piece1-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_3/piece2-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1/expt_3/piece3-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_3/piece1-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_3/piece2-gfp-normal/piece-',
+'/global/scratch/arjitmisra/RD1-P2X7KO/expt_3/piece3-gfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_3/piece1-gfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_3/piece2-gfp-normal/piece-',
+'/global/scratch/arjitmisra/WT/expt_3/piece3-gfp-normal/piece-'
 ]
 
 def parallel(prefix, binarized, clustered, split):
@@ -343,7 +341,7 @@ def parallel(prefix, binarized, clustered, split):
             stack_slice = Stack_slice(x, cells=[])
             inFile = prefix + str(x).rjust(4, '0') + '.tif'
             try:
-                subprocess.run('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")))
+                subprocess.run('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")), shell=True)
             except FileNotFoundError:
                 pass 
 
@@ -359,6 +357,7 @@ def parallel(prefix, binarized, clustered, split):
                 break
             else:
                 print('{0} not processed'.format(prefix))
+                logging.error(traceback.format_exc())
                 return
         else:
             print(prefix)
@@ -373,7 +372,7 @@ def overlay(current_stack, prefix, pic_arrays):
     x = 0
     outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
 
-    colorLimit = WHITE
+    colorLimit = skimage.dtype_limits(out_rgb True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
     cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]
 
@@ -424,11 +423,11 @@ def one_arg(prefix):
     except Exception as e:
         print("Error occured in processing {0}: {1}".format(prefix, e))
         logging.error(traceback.format_exc())
-    try:
-        subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")))
-    except Exception as e:
-        print("Error occured in copying {0}: {1}".format(prefix, e))
-        logging.error(traceback.format_exc())
+    # try:
+    #     subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")))
+    # except Exception as e:
+    #     print("Error occured in copying {0}: {1}".format(prefix, e))
+    #     logging.error(traceback.format_exc())
 
 cpus = multiprocessing.cpu_count()
 with Pool(cpus) as p:
