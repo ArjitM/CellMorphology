@@ -142,8 +142,6 @@ def getBinary(inFile, pic_array, binarized):
             with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
                 bin_array = pic_bin.asarray()
         except (FileNotFoundError, EOFError):
-            pass
-        else:
             bin_array = makeBinary(inFile, pic_array)
     else:
         bin_array = makeBinary(inFile, pic_array)
