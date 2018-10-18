@@ -81,4 +81,5 @@ class Stack:
                             self.large_Cells.remove(lr)
 
         for lg in self.large_Cells:
-            lg.stack_slice.finalizedCellSlice.addCell(lg)
+            if not lg.internalEdges:# and lg.roundness > 0.75:
+                lg.stack_slice.finalizedCellSlice.addCell(lg)

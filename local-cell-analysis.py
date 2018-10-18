@@ -113,6 +113,7 @@ def makeBinary(inFile, pic_array):
          out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
+    print("***made binary")
     return out_array
 
 
@@ -140,13 +141,10 @@ def getBinary(inFile, pic_array, binarized):
         try:
             with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
                 bin_array = pic_bin.asarray()
-        except FileNotFoundError:
-            pass
-        else:
+        except (FileNotFoundError, EOFError):
             bin_array = makeBinary(inFile, pic_array)
     else:
         bin_array = makeBinary(inFile, pic_array)
-    print("***made binary")
     return bin_array
 
 
@@ -179,7 +177,7 @@ def saveCells(inFile, stack_slice):
     outFile.close()
 
 
-def process_image(inFile, stack_slice, binarized, clustered, split):
+def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
 
     with skimage.external.tifffile.TiffFile(inFile) as pic:
         pic_array = pic.asarray()
@@ -187,7 +185,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
     if split: #breakpoint to test stack collation
         try:
             loadCells(inFile, stack_slice)
-        except FileNotFoundError:
+        except (FileNotFoundError, EOFError):
             clustered = True
         else:
             return pic_array
@@ -196,7 +194,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split):
         clusters = []
         try:
             clusters = loadClusters(inFile)
-        except FileNotFoundError:
+        except (FileNotFoundError, EOFError):
             bin_array = getBinary(inFile, pic_array, binarized=True)
             boundary = findBoundaryPoints(bin_array)
             superimposeBoundary(inFile, pic_array, boundary)
@@ -276,29 +274,27 @@ prefixes = [
 '../Cell Size Project/RD1-P2X7KO/expt_3/piece3-rfp-normal/piece-',
 '../Cell Size Project/WT/expt_3/piece1-rfp-normal/piece-',
 '../Cell Size Project/WT/expt_3/piece2-rfp-normal/piece-',
-'../Cell Size Project/WT/expt_3/piece3-rfp-normal/piece-',
-
-'../vit A/vit_A_free/Mouse 1/eye1p1f2_normal/piece-',
-'../vit A/vit_A_free/Mouse 1/eye1p1f3_normal/piece-',
-'../vit A/vit_A_free/Mouse 1/eye1p2f1_normal/piece-',
-'../vit A/vit_A_free/Mouse 1/eye1p2f2_normal/piece-',
-'../vit A/vit_A_free/Mouse 1/eye1p2f3_normal/piece-',
-'../vit A/vit_A_free/Mouse 1/eye2p1f1_normal/piece-',
-'../vit A/vit_A_free/Mouse 1/eye2p1f2_normal/piece-',
-'../vit A/vit_A_free/Mouse 1/eye2p1f3_normal/piece-',
-'../vit A/vit_A_free/Mouse 1/eye1p1f1_normal/piece-',
-'../vit A/vit_A_free/Mouse 2/eye1p1f1_normal/piece-',
-'../vit A/vit_A_free/Mouse 2/eye1p1f2_normal/piece-',
-'../vit A/vit_A_free/Mouse 2/eye1p1f3_normal/piece-',
-'../vit A/vit_A_free/Mouse 2/eye1p2f1_normal/piece-',
-'../vit A/vit_A_free/Mouse 2/eye1p2f2_normal/piece-',
-'../vit A/vit_A_free/Mouse 3/eye1p1f1_normal/piece-',
-'../vit A/vit_A_free/Mouse 3/eye1p1f2_normal/piece-',
-'../vit A/vit_A_free/Mouse 3/eye1p1f3_normal/piece-',
-'../vit A/vit_A_free/Mouse 3/eye1p2f1_normal/piece-',
-'../vit A/vit_A_free/Mouse 3/eye1p2f2_normal/piece-',
+'../Cell Size Project/WT/expt_3/piece3_rfp-normal/piece-',
+'../vit A/vit_A_free/Mouse_1/eye1p1f2_normal/piece-',
+'../vit A/vit_A_free/Mouse_1/eye1p1f3_normal/piece-',
+'../vit A/vit_A_free/Mouse_1/eye1p2f1_normal/piece-',
+'../vit A/vit_A_free/Mouse_1/eye1p2f2_normal/piece-',
+'../vit A/vit_A_free/Mouse_1/eye1p2f3_normal/piece-',
+'../vit A/vit_A_free/Mouse_1/eye2p1f1_normal/piece-',
+'../vit A/vit_A_free/Mouse_1/eye2p1f2_normal/piece-',
+'../vit A/vit_A_free/Mouse_1/eye2p1f3_normal/piece-',
+'../vit A/vit_A_free/Mouse_1/eye1p1f1_normal/piece-',
+'../vit A/vit_A_free/Mouse_2/eye1p1f1_normal/piece-',
+'../vit A/vit_A_free/Mouse_2/eye1p1f2_normal/piece-',
+'../vit A/vit_A_free/Mouse_2/eye1p1f3_normal/piece-',
+'../vit A/vit_A_free/Mouse_2/eye1p2f1_normal/piece-',
+'../vit A/vit_A_free/Mouse_2/eye1p2f2_normal/piece-',
+'../vit A/vit_A_free/Mouse_3/eye1p1f1_normal/piece-',
+'../vit A/vit_A_free/Mouse_3/eye1p1f2_normal/piece-',
+'../vit A/vit_A_free/Mouse_3/eye1p1f3_normal/piece-',
+'../vit A/vit_A_free/Mouse_3/eye1p2f1_normal/piece-',
+'../vit A/vit_A_free/Mouse_3/eye1p2f2_normal/piece-',
 '../vit A/vit_A_free/Mouse 3/eye1p2f3_normal/piece-',
-
 '../Cell Size Project/RD1/expt_1/piece1-gfp-normal/piece-',
 '../Cell Size Project/RD1/expt_1/piece2-gfp-normal/piece-',
 '../Cell Size Project/RD1/expt_1/piece3-gfp-normal/piece-',
@@ -328,7 +324,7 @@ prefixes = [
 '../Cell Size Project/WT/expt_3/piece3-gfp-normal/piece-'
 ]
 
-def parallel(prefix, binarized, clustered, split):
+def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
     x = 1
@@ -343,11 +339,11 @@ def parallel(prefix, binarized, clustered, split):
             stack_slice = Stack_slice(x, cells=[])
             inFile = prefix + str(x).rjust(4, '0') + '.tif'
             try:
-                subprocess.run('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")))
+                subprocess.run('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")), shell=True)
             except FileNotFoundError:
                 pass 
 
-            pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split))
+            pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split, overlay))
 
             stack_slice.pruneCells(0.65)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
@@ -359,21 +355,23 @@ def parallel(prefix, binarized, clustered, split):
                 break
             else:
                 print('{0} not processed'.format(prefix))
+                logging.error(traceback.format_exc())
                 return
         else:
             print(prefix)
             x += 1
+
+    current_stack.collate_slices()
     overlay(current_stack, prefix, pic_arrays)
 
 def overlay(current_stack, prefix, pic_arrays):
 
-    current_stack.collate_slices()
     out_rgb = skimage.color.gray2rgb(pic_arrays[0])
     out_rgb.fill(0)
     x = 0
     outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
 
-    colorLimit = WHITE
+    colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
     cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]
 
@@ -390,7 +388,7 @@ def overlay(current_stack, prefix, pic_arrays):
     largest_3d = []
     for ss, pic_array in zip(current_stack.stack_slices, pic_arrays):
         largest_3d.append(skimage.color.gray2rgb(pic_array))
-        largest_3d[-1].fill(0)
+        #largest_3d[-1].fill(0)
         color_index = ss.number % len(colored)
 
         for c in ss.cells:
@@ -398,11 +396,12 @@ def overlay(current_stack, prefix, pic_arrays):
                 largest_3d[-1][b[0]][b[1]] = magenta
 
         for c in ss.finalizedCellSlice.cells:
-
+            print("HERE>>>>>")
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = magenta
+                largest_3d[-1][b[0]][b[1]] = cyan
             for b in c.interior:
-                largest_3d[-1][b[0]][b[1]] = pic_array[b[0]][b[1]] * 0.6 + 0.4 * cyan
+                print("interior")
+                largest_3d[-1][b[0]][b[1]] = [ [p * 0.6 for p in pic_array[b[0]][b[1]]][i] + [c * 0.4 for c in cyan][i] for i in range(0, 3)]
                 #colored[color_index]
         #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
     largest_3d = np.array(largest_3d)
@@ -415,26 +414,27 @@ parser = argparse.ArgumentParser(description="specify previous completion")
 parser.add_argument('-b', '--binarized', dest="binarized", default=False, action="store_true")
 parser.add_argument('-c', '--clustered', dest="clustered", default=False, action="store_true")
 parser.add_argument('-s', '--split', dest="split", default=False, action="store_true")
+parser.add_argument('-o', '--overlaid', dest="overlaid", default=False, action="store_true")
 
 args = parser.parse_args()
 
 def one_arg(prefix):
     try:
-        parallel(prefix, args.binarized, args.clustered, args.split)
+        parallel(prefix, args.binarized, args.clustered, args.split, args.overlaid)
     except Exception as e:
         print("Error occured in processing {0}: {1}".format(prefix, e))
         logging.error(traceback.format_exc())
-    try:
-        subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")))
-    except Exception as e:
-        print("Error occured in copying {0}: {1}".format(prefix, e))
-        logging.error(traceback.format_exc())
+    # try:
+    #     subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")))
+    # except Exception as e:
+    #     print("Error occured in copying {0}: {1}".format(prefix, e))
+    #     logging.error(traceback.format_exc())
 
 cpus = multiprocessing.cpu_count()
-with Pool(cpus) as p:
-  p.map(one_arg, prefixes)
+# with Pool(2) as p:
+#   p.map(one_arg, prefixes[:4])
 
-#one_arg(prefixes[0])
+one_arg(prefixes[0])
 
 
 
