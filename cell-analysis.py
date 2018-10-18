@@ -372,7 +372,7 @@ def overlay(current_stack, prefix, pic_arrays):
     x = 0
     outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
 
-    colorLimit = skimage.dtype_limits(out_rgb True)[1]
+    colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
     cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]
 
