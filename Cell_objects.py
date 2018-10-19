@@ -305,7 +305,7 @@ class Cluster:
             edge.append(pair.point)
 
             for p in edge:
-                self.binary[p[0]][p[1]] = 0
+                self.binary[p[0]][p[1]] = 1 #making this 0 intereferes with area
 
             #print("New edge done")
 
@@ -359,9 +359,13 @@ class Cell(Cluster):
         super().__init__(binary, boundary, stack_slice, internalEdges)
         #stack_slice.addCell(self)
         if not self.internalEdges:
+            self.internalBoundaryHits = 0 #if cell is in "controversial" lots of boundaries region, it is killed
             self.interior = [] #this is updated by the area function
             self.area = self.area()
-            self.roundness = self.roundness()
+            if self.internalBoundaryHits > self.area / 3:
+                self.kill()
+            else:
+                self.roundness = self.roundness()
             # self.colored = skimage.color.grey2rgb(self.binary)
 
 
@@ -399,7 +403,11 @@ class Cell(Cluster):
         sortedBound.sort() #default key sort tuples (i, j) by i then j
         return [ list(filter(lambda p: p[0] == y, sortedBound)) for y in range(sortedBound[0][0], sortedBound[-1][0] + 1)]
 
-    def get_var_pairs(self, var_bounds, index):
+
+    def addInternalBoundaryHit(self):
+        self.internalBoundaryHits += 1
+
+    def get_var_pairs(self, var_bounds, index, area=False): #if area is true check for controversial region
         if len(var_bounds) <= 1:
             return []
         k = 0
@@ -412,6 +420,8 @@ class Cell(Cluster):
                     if self.binary[var_bounds[k][0]][btwn] == 0:
                         interrupted = True
                         break
+                    if area and self.binary[var_bounds[k][0]][btwn] == 1:
+                        self.addInternalBoundaryHit()
                 else:
                     if self.binary[btwn][var_bounds[k][1]] == 0:
                         interrupted = True
@@ -431,10 +441,10 @@ class Cell(Cluster):
 
 
     def area(self):
-        bounds = self.getBoundary2D()
+        bounds = self.getBoundary2D() #returns row-wise 2d matrix
         area = 0
-        for b in bounds:
-            x_pairs = self.get_var_pairs(b, 1)
+        for b in bounds: #boundary points in each row
+            x_pairs = self.get_var_pairs(b, 1, True)
             if x_pairs == []:
                 area += 1
             else:
@@ -464,4 +474,5 @@ class Cell(Cluster):
 
 
     def kill(self):
-        self.stack_slice.removeCell(self)
+        if self in self.stack_slice.cells:
+            self.stack_slice.removeCell(self)

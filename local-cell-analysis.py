@@ -19,6 +19,7 @@ def makeClusters(binary, boundary, stack_slice):
     
     Cluster.clusters = []
     if len(boundary) == 0:
+        print("NO BOUNDARY")
         return []
     boundary.sort() #should be sorted but double-checking; sort by i then j
     clusterBounds = []
@@ -77,11 +78,11 @@ def makeClusters(binary, boundary, stack_slice):
             clusterBounds.append(current)
             #print("###############################cluster appended")
 
-    clusters = []
+    Cluster.clusters = []
     for c in clusterBounds:
-        clusters.append(Cluster(binary, c, stack_slice))
+        Cluster.clusters.append(Cluster(binary, c, stack_slice))
     print("$$$$$$$$$$$$$$", len(clusterBounds))
-    return clusters
+    return Cluster.clusters
 
 def makeBinary(inFile, pic_array):
 
@@ -90,6 +91,7 @@ def makeBinary(inFile, pic_array):
     out_array = [ [0] * len(pic_array[1]) ] * len(pic_array)
     global WHITE
     WHITE = skimage.dtype_limits(pic_array, True)[1]
+    #print("Limit: ", WHITE)
     Binarize.WHITE = WHITE
     Binarize.bin_WHITE = WHITE
     Cell_objects.WHITE = WHITE
@@ -125,7 +127,7 @@ def makeCells(inFile, clusters=Cluster.clusters):
             c.getTrueCusps(10)
         except AssertionError:
             noise_clusters.append(c)
-        finally:
+        else:
             c.pruneCusps()
             c.propagateInternalBoundaries()
             #c.showCusps()  #WONT WORK with boolean binary
@@ -154,24 +156,32 @@ def superimposeBoundary(inFile, pic_array, boundary):
         bound[b[0]][b[1]] = 0
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Bound.tif'), bound)
 
-def loadClusters(inFile):
+def loadClusters(inFile, stack_slice):
     clustFile = open(inFile.replace('.tif', '_clusters.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
-    Cluster.clusters = pickle.load(cellFile)
+    Cluster.clusters = pickle.load(clustFile)
+    #print(len(Cluster.clusters))
+    for c in Cluster.clusters:
+        #print("Cluster!!")
+        c.stack_slice = stack_slice
     clustFile.close()
+    return Cluster.clusters
 
 def saveClusters(inFile, clusters=Cluster.clusters):
-    print("clusters made")
+    #print("clusters made")
     outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
+    #print("will be saved ", len(clusters))
     pickle.dump(clusters, outFile)
     outFile.close()
 
 def loadCells(inFile, stack_slice):
     cellFile = open(inFile.replace('.tif', '_cells.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
     stack_slice.cells = pickle.load(cellFile)
+    for c in stack_slice.cells:
+        c.stack_slice = stack_slice
     cellFile.close()
 
 def saveCells(inFile, stack_slice):
-    print("cells made")
+    #print("cells made")
     outFile = open(inFile.replace('.tif', '_cells.pkl'), 'wb')
     pickle.dump(stack_slice.cells, outFile)
     outFile.close()
@@ -193,14 +203,14 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     if clustered:
         clusters = []
         try:
-            clusters = loadClusters(inFile)
+            clusters = loadClusters(inFile, stack_slice)
         except (FileNotFoundError, EOFError):
             bin_array = getBinary(inFile, pic_array, binarized=True)
             boundary = findBoundaryPoints(bin_array)
             superimposeBoundary(inFile, pic_array, boundary)
             Cluster.pic = pic_array
             clusters = makeClusters(bin_array, boundary, stack_slice)
-            saveClusters(inFile)
+            saveClusters(inFile, clusters)
         finally:
             makeCells(inFile, clusters)
             saveCells(inFile, stack_slice)
@@ -208,11 +218,14 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
 
     else:
         bin_array = getBinary(inFile, pic_array, binarized)
+        #print(bin_array)
+        #print("#######hhhhhhhhhh", len(bin_array))
         boundary = findBoundaryPoints(bin_array)
+        #print("#############", len(boundary))
         superimposeBoundary(inFile, pic_array, boundary)
         Cluster.pic = pic_array
         clusters = makeClusters(bin_array, boundary, stack_slice)
-        saveClusters(inFile)  
+        saveClusters(inFile, clusters)  
         makeCells(inFile, clusters) 
         saveCells(inFile, stack_slice)
         return pic_array
@@ -350,10 +363,10 @@ def parallel(prefix, binarized, clustered, split, overlaid):
             current_stack.addSlice(stack_slice)
 
         except IOError:
-            print("IOError")
             if x != 1:
                 break
             else:
+                print("IOError")
                 print('{0} not processed'.format(prefix))
                 logging.error(traceback.format_exc())
                 return
@@ -369,7 +382,10 @@ def overlay(current_stack, prefix, pic_arrays):
     out_rgb = skimage.color.gray2rgb(pic_arrays[0])
     out_rgb.fill(0)
     x = 0
-    outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
+    if "-rfp-" in prefix:
+        outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
+    else:
+        outFile = open(prefix + 'Some Sizes.csv', 'w')
 
     colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
@@ -378,11 +394,9 @@ def overlay(current_stack, prefix, pic_arrays):
     outFile.write("LARGEST CELLS ARE \n")
     for c in current_stack.large_Cells:
         x+=1
-        outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
         color_index = c.stack_slice.number % len(colored)
         for b in c.boundary:
             out_rgb[b[0]][b[1]] = colored[color_index]
-    outFile.close()
     skimage.external.tifffile.imsave(prefix + 'largest.tif', out_rgb)
     
     largest_3d = []
@@ -391,19 +405,20 @@ def overlay(current_stack, prefix, pic_arrays):
         #largest_3d[-1].fill(0)
         color_index = ss.number % len(colored)
 
+        #print(ss.finalizedCellSlice.cells)
         for c in ss.cells:
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = magenta
 
         for c in ss.finalizedCellSlice.cells:
-            print("HERE>>>>>")
+            outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
+            for b in c.interior:
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in cyan][i] for i in range(0, 3)]
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = cyan
-            for b in c.interior:
-                print("interior")
-                largest_3d[-1][b[0]][b[1]] = [ [p * 0.6 for p in pic_array[b[0]][b[1]]][i] + [c * 0.4 for c in cyan][i] for i in range(0, 3)]
                 #colored[color_index]
         #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
+    outFile.close()
     largest_3d = np.array(largest_3d)
     skimage.external.tifffile.imsave('{0}largest3D.tif'.format(prefix), largest_3d)
 
@@ -434,7 +449,7 @@ cpus = multiprocessing.cpu_count()
 # with Pool(2) as p:
 #   p.map(one_arg, prefixes[:4])
 
-one_arg(prefixes[0])
+one_arg(prefixes[2])
 
 
 

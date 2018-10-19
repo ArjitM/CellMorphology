@@ -18,7 +18,7 @@ class Stack_slice:
         self.cells.remove(cell)
 
     def pruneCells(self, roundness_thresh=0.75):
-        self.cells = [c for c in self.cells if c.roundness > roundness_thresh]
+        self.cells = [c for c in self.cells if not c.internalEdges and c.roundness > roundness_thresh]
         self.cells = [c for c in self.cells if c.area > 15 and c.area < 500]
 
 class Stack_slice_largest(Stack_slice):
@@ -81,5 +81,8 @@ class Stack:
                             self.large_Cells.remove(lr)
 
         for lg in self.large_Cells:
-            if not lg.internalEdges:# and lg.roundness > 0.75:
+            if not lg.internalEdges and lg.roundness > 0.75:
                 lg.stack_slice.finalizedCellSlice.addCell(lg)
+
+
+
