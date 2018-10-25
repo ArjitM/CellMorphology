@@ -358,6 +358,7 @@ class Cell(Cluster):
     def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
         super().__init__(binary, boundary, stack_slice, internalEdges)
         #stack_slice.addCell(self)
+        self.roundness = 0
         if not self.internalEdges:
             self.internalBoundaryHits = 0 #if cell is in "controversial" lots of boundaries region, it is killed
             self.interior = [] #this is updated by the area function
@@ -365,7 +366,7 @@ class Cell(Cluster):
             if self.internalBoundaryHits > self.area / 3:
                 self.kill()
             else:
-                self.roundness = self.roundness()
+                self.roundness = self.getRoundness()
             # self.colored = skimage.color.grey2rgb(self.binary)
 
 
@@ -454,7 +455,7 @@ class Cell(Cluster):
         return area
 
 
-    def roundness(self):
+    def getRoundness(self):
         circum = len(self.boundary)
         ideal = circum / (2 * math.pi)
         # k = circum // 8

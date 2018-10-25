@@ -339,11 +339,7 @@ def visualize_Clusters(clusters, out_array, inFile):
 # ]
 
 locations = [
-'/global/scratch/arjitmisra/vit_A_free/',
-'/global/scratch/arjitmisra/WT/',
-'/global/scratch/arjitmisra/RD1-P2X7KO/',
-'/global/scratch/arjitmisra/RD1/',
-'/global/scratch/arjitmisra/VAF_new_cohort/'
+'/global/scratch/arjitmisra/Vit_A_new/'
 ]
 prefixes = []
 for loc in locations:

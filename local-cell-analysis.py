@@ -14,6 +14,7 @@ import argparse
 import pickle
 import logging
 import traceback
+import os
 
 def makeClusters(binary, boundary, stack_slice):
     
@@ -111,7 +112,7 @@ def makeBinary(inFile, pic_array):
     noise_handler = Noise(out_array, iterations=3, binary=True)
     noise_handler.reduce() #reduce salt and pepper noise incorrectly labelled as edges 
 
-    if '-rfp-' in inFile:
+    if '-rfp-' in inFile or 'nucleus' in inFile:
          out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
@@ -260,82 +261,99 @@ def visualize_Clusters(clusters, out_array, inFile):
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
 
 
-prefixes = [
-'../Cell Size Project/RD1/expt_1/piece1-rfp-normal/piece-',
-'../Cell Size Project/RD1/expt_1/piece2-rfp-normal/piece-',
-'../Cell Size Project/RD1/expt_1/piece3-rfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_1/piece1-rfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_1/piece2-rfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_1/piece3-rfp-normal/piece-',
-'../Cell Size Project/WT/expt_1/piece1-rfp-normal/piece-',
-'../Cell Size Project/WT/expt_1/piece2-rfp-normal/piece-',
-'../Cell Size Project/WT/expt_1/piece3-rfp-normal/piece-',
-'../Cell Size Project/RD1/expt_2/piece1-rfp-normal/piece-',
-'../Cell Size Project/RD1/expt_2/piece2-rfp-normal/piece-',
-'../Cell Size Project/RD1/expt_2/piece3-rfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_2/piece1-rfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_2/piece2-rfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_2/piece3-rfp-normal/piece-',
-'../Cell Size Project/WT/expt_2/piece1-rfp-normal/piece-',
-'../Cell Size Project/WT/expt_2/piece2-rfp-normal/piece-',
-'../Cell Size Project/WT/expt_2/piece3-rfp-normal/piece-',
-'../Cell Size Project/RD1/expt_3/piece1-rfp-normal/piece-',
-'../Cell Size Project/RD1/expt_3/piece2-rfp-normal/piece-',
-'../Cell Size Project/RD1/expt_3/piece3-rfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_3/piece1-rfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_3/piece2-rfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_3/piece3-rfp-normal/piece-',
-'../Cell Size Project/WT/expt_3/piece1-rfp-normal/piece-',
-'../Cell Size Project/WT/expt_3/piece2-rfp-normal/piece-',
-'../Cell Size Project/WT/expt_3/piece3_rfp-normal/piece-',
-'../vit A/vit_A_free/Mouse_1/eye1p1f2_normal/piece-',
-'../vit A/vit_A_free/Mouse_1/eye1p1f3_normal/piece-',
-'../vit A/vit_A_free/Mouse_1/eye1p2f1_normal/piece-',
-'../vit A/vit_A_free/Mouse_1/eye1p2f2_normal/piece-',
-'../vit A/vit_A_free/Mouse_1/eye1p2f3_normal/piece-',
-'../vit A/vit_A_free/Mouse_1/eye2p1f1_normal/piece-',
-'../vit A/vit_A_free/Mouse_1/eye2p1f2_normal/piece-',
-'../vit A/vit_A_free/Mouse_1/eye2p1f3_normal/piece-',
-'../vit A/vit_A_free/Mouse_1/eye1p1f1_normal/piece-',
-'../vit A/vit_A_free/Mouse_2/eye1p1f1_normal/piece-',
-'../vit A/vit_A_free/Mouse_2/eye1p1f2_normal/piece-',
-'../vit A/vit_A_free/Mouse_2/eye1p1f3_normal/piece-',
-'../vit A/vit_A_free/Mouse_2/eye1p2f1_normal/piece-',
-'../vit A/vit_A_free/Mouse_2/eye1p2f2_normal/piece-',
-'../vit A/vit_A_free/Mouse_3/eye1p1f1_normal/piece-',
-'../vit A/vit_A_free/Mouse_3/eye1p1f2_normal/piece-',
-'../vit A/vit_A_free/Mouse_3/eye1p1f3_normal/piece-',
-'../vit A/vit_A_free/Mouse_3/eye1p2f1_normal/piece-',
-'../vit A/vit_A_free/Mouse_3/eye1p2f2_normal/piece-',
-'../vit A/vit_A_free/Mouse 3/eye1p2f3_normal/piece-',
-'../Cell Size Project/RD1/expt_1/piece1-gfp-normal/piece-',
-'../Cell Size Project/RD1/expt_1/piece2-gfp-normal/piece-',
-'../Cell Size Project/RD1/expt_1/piece3-gfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_1/piece1-gfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_1/piece2-gfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_1/piece3-gfp-normal/piece-',
-'../Cell Size Project/WT/expt_1/piece1-gfp-normal/piece-',
-'../Cell Size Project/WT/expt_1/piece2-gfp-normal/piece-',
-'../Cell Size Project/WT/expt_1/piece3-gfp-normal/piece-',
-'../Cell Size Project/RD1/expt_2/piece1-gfp-normal/piece-',
-'../Cell Size Project/RD1/expt_2/piece2-gfp-normal/piece-',
-'../Cell Size Project/RD1/expt_2/piece3-gfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_2/piece1-gfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_2/piece2-gfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_2/piece3-gfp-normal/piece-',
-'../Cell Size Project/WT/expt_2/piece1-gfp-normal/piece-',
-'../Cell Size Project/WT/expt_2/piece2-gfp-normal/piece-',
-'../Cell Size Project/WT/expt_2/piece3-gfp-normal/piece-',
-'../Cell Size Project/RD1/expt_3/piece1-gfp-normal/piece-',
-'../Cell Size Project/RD1/expt_3/piece2-gfp-normal/piece-',
-'../Cell Size Project/RD1/expt_3/piece3-gfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_3/piece1-gfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_3/piece2-gfp-normal/piece-',
-'../Cell Size Project/RD1-P2X7KO/expt_3/piece3-gfp-normal/piece-',
-'../Cell Size Project/WT/expt_3/piece1-gfp-normal/piece-',
-'../Cell Size Project/WT/expt_3/piece2-gfp-normal/piece-',
-'../Cell Size Project/WT/expt_3/piece3-gfp-normal/piece-'
+# prefixes = [
+# '../Cell Size Project/RD1/expt_1/piece1-rfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_1/piece2-rfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_1/piece3-rfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_1/piece1-rfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_1/piece2-rfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_1/piece3-rfp-normal/piece-',
+# '../Cell Size Project/WT/expt_1/piece1-rfp-normal/piece-',
+# '../Cell Size Project/WT/expt_1/piece2-rfp-normal/piece-',
+# '../Cell Size Project/WT/expt_1/piece3-rfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_2/piece1-rfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_2/piece2-rfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_2/piece3-rfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_2/piece1-rfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_2/piece2-rfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_2/piece3-rfp-normal/piece-',
+# '../Cell Size Project/WT/expt_2/piece1-rfp-normal/piece-',
+# '../Cell Size Project/WT/expt_2/piece2-rfp-normal/piece-',
+# '../Cell Size Project/WT/expt_2/piece3-rfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_3/piece1-rfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_3/piece2-rfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_3/piece3-rfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_3/piece1-rfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_3/piece2-rfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_3/piece3-rfp-normal/piece-',
+# '../Cell Size Project/WT/expt_3/piece1-rfp-normal/piece-',
+# '../Cell Size Project/WT/expt_3/piece2-rfp-normal/piece-',
+# '../Cell Size Project/WT/expt_3/piece3_rfp-normal/piece-',
+# '../vit A/vit_A_free/Mouse_1/eye1p1f2_normal/piece-',
+# '../vit A/vit_A_free/Mouse_1/eye1p1f3_normal/piece-',
+# '../vit A/vit_A_free/Mouse_1/eye1p2f1_normal/piece-',
+# '../vit A/vit_A_free/Mouse_1/eye1p2f2_normal/piece-',
+# '../vit A/vit_A_free/Mouse_1/eye1p2f3_normal/piece-',
+# '../vit A/vit_A_free/Mouse_1/eye2p1f1_normal/piece-',
+# '../vit A/vit_A_free/Mouse_1/eye2p1f2_normal/piece-',
+# '../vit A/vit_A_free/Mouse_1/eye2p1f3_normal/piece-',
+# '../vit A/vit_A_free/Mouse_1/eye1p1f1_normal/piece-',
+# '../vit A/vit_A_free/Mouse_2/eye1p1f1_normal/piece-',
+# '../vit A/vit_A_free/Mouse_2/eye1p1f2_normal/piece-',
+# '../vit A/vit_A_free/Mouse_2/eye1p1f3_normal/piece-',
+# '../vit A/vit_A_free/Mouse_2/eye1p2f1_normal/piece-',
+# '../vit A/vit_A_free/Mouse_2/eye1p2f2_normal/piece-',
+# '../vit A/vit_A_free/Mouse_3/eye1p1f1_normal/piece-',
+# '../vit A/vit_A_free/Mouse_3/eye1p1f2_normal/piece-',
+# '../vit A/vit_A_free/Mouse_3/eye1p1f3_normal/piece-',
+# '../vit A/vit_A_free/Mouse_3/eye1p2f1_normal/piece-',
+# '../vit A/vit_A_free/Mouse_3/eye1p2f2_normal/piece-',
+# '../vit A/vit_A_free/Mouse 3/eye1p2f3_normal/piece-',
+# '../Cell Size Project/RD1/expt_1/piece1-gfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_1/piece2-gfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_1/piece3-gfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_1/piece1-gfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_1/piece2-gfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_1/piece3-gfp-normal/piece-',
+# '../Cell Size Project/WT/expt_1/piece1-gfp-normal/piece-',
+# '../Cell Size Project/WT/expt_1/piece2-gfp-normal/piece-',
+# '../Cell Size Project/WT/expt_1/piece3-gfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_2/piece1-gfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_2/piece2-gfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_2/piece3-gfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_2/piece1-gfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_2/piece2-gfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_2/piece3-gfp-normal/piece-',
+# '../Cell Size Project/WT/expt_2/piece1-gfp-normal/piece-',
+# '../Cell Size Project/WT/expt_2/piece2-gfp-normal/piece-',
+# '../Cell Size Project/WT/expt_2/piece3-gfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_3/piece1-gfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_3/piece2-gfp-normal/piece-',
+# '../Cell Size Project/RD1/expt_3/piece3-gfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_3/piece1-gfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_3/piece2-gfp-normal/piece-',
+# '../Cell Size Project/RD1-P2X7KO/expt_3/piece3-gfp-normal/piece-',
+# '../Cell Size Project/WT/expt_3/piece1-gfp-normal/piece-',
+# '../Cell Size Project/WT/expt_3/piece2-gfp-normal/piece-',
+# '../Cell Size Project/WT/expt_3/piece3-gfp-normal/piece-'
+# ]
+
+locations = [
+'../vit A/vit_A_free/',
+'../Cell Size Project/WT/',
+'../Cell Size Project/RD1-P2X7KO/',
+'../Cell Size Project/RD1/'
 ]
+prefixes = []
+for loc in locations:
+    for dir1 in next(os.walk(loc))[1]: #Expt #/Mouse#
+        try:
+            for dir2 in next(os.walk(loc + dir1))[1]:
+                if 'normal' in dir2:
+                    prefixes.append(loc + dir1 + "/" + dir2 + "/piece-")
+        except:
+            pass
+
 
 def parallel(prefix, binarized, clustered, split, overlaid):
 
@@ -445,11 +463,13 @@ def one_arg(prefix):
     #     print("Error occured in copying {0}: {1}".format(prefix, e))
     #     logging.error(traceback.format_exc())
 
-cpus = multiprocessing.cpu_count()
-# with Pool(2) as p:
+# cpus = multiprocessing.cpu_count()
+# with Pool(1) as p:
 #   p.map(one_arg, prefixes[:4])
 
-one_arg(prefixes[2])
+one_arg('../Cell Size Project/RD1/expt_1/piece2-rfp-normal/piece-')
+
+
 
 
 
