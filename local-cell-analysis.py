@@ -86,7 +86,7 @@ def makeClusters(binary, boundary, stack_slice):
     print("$$$$$$$$$$$$$$", len(clusterBounds))
     return Cluster.clusters
 
-def makeBinary(inFile, pic_array):
+def makeBinary(inFile, pic_array, pic):
 
     #pic_array = pic.asarray()
     #out_array = pic.asarray(); #copy dimensions
@@ -106,8 +106,8 @@ def makeBinary(inFile, pic_array):
     out_array = np.array(out_array, dtype=pic_array.dtype.type) # keep same image type
     #basicEdge(pic_array, out_array, regions) # preliminary edge detection via pixel gradient
 
-    out_array = threshold_local(out_array, block_size=35, offset=10)
-    
+    out_array = pic_array > threshold_local(pic_array, block_size=35, offset=10).astype(pic_array.dtype.type) #NOT SCALED MUST FIX
+
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
 
     regions.setNoiseCompartments(out_array, 0.95)
@@ -151,9 +151,12 @@ def getBinary(inFile, pic_array, binarized):
             with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
                 bin_array = pic_bin.asarray()
         except (FileNotFoundError, EOFError):
-            bin_array = makeBinary(inFile, pic_array)
+            pic = skimage.external.tifffile.TiffFile(inFile)
+            bin_array = makeBinary(inFile, pic_array, pic)
     else:
-        bin_array = makeBinary(inFile, pic_array)
+        pic = skimage.external.tifffile.TiffFile(inFile)
+        bin_array = makeBinary(inFile, pic_array, pic)
+    pic.close()
     return bin_array
 
 
