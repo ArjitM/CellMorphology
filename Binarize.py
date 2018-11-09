@@ -235,20 +235,23 @@ def basicEdge(pic_array, out_array, regions):
                 out_array[i][j] = bin_WHITE #WHITE //using boolean representation to save memory
     return out_array
 
-def enhanceEdges(pic_array, out_array, regions):
+def enhanceEdges(pic_array, out_array, regions, nucleusMode=False):
     global borderMean
     borderMean = regions.getAvgBorder(out_array)
     tolerance = 0.085 * WHITE # +/- 7 % of total image range
+    bg = bin_WHITE if nucleusMode else 0
+    fg = 0 if nucleusMode else bin_WHITE
+
 
     for i in range(len(out_array)):
         for j in range(len(out_array[0])):
             local_border_avg = regions.getCompartment(i, j).border_mean
             if local_border_avg - tolerance <= pic_array[i][j] and local_border_avg + tolerance >= pic_array[i][j]:
-                out_array[i][j] = 0
+                out_array[i][j] = bg
             elif pic_array[i][j] > local_border_avg:
-                out_array[i][j] = 0 #blackens blood vessels
+                out_array[i][j] = bg #remove blood vessels
             elif pic_array[i][j] < local_border_avg and regions.getCompartment(i, j).noise_compartment == False:
-                out_array[i][j] = bin_WHITE #WHITE
+                out_array[i][j] = fg #foreground
             #if regions.getCompartment(i, j).noise_compartment == True:
                #out_array[i][j] = WHITE // 2
 

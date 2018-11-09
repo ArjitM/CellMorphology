@@ -89,6 +89,8 @@ def makeBinary(inFile, pic_array):
 
     #pic_array = pic.asarray()
     #out_array = pic.asarray(); #copy dimensions
+    nucleusMode = '-rfp-' in inFile or 'ucleus' in inFile
+
     out_array = [ [0] * len(pic_array[1]) ] * len(pic_array)
     global WHITE
     WHITE = skimage.dtype_limits(pic_array, True)[1]
@@ -106,14 +108,11 @@ def makeBinary(inFile, pic_array):
 
     regions.setNoiseCompartments(out_array, 0.95)
 
-    enhanceEdges(pic_array, out_array, regions) # use detected averages to guess missing edges
+    enhanceEdges(pic_array, out_array, regions, nucleusMode) # use detected averages to guess missing edges
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
 
     noise_handler = Noise(out_array, iterations=3, binary=True)
     noise_handler.reduce() #reduce salt and pepper noise incorrectly labelled as edges 
-
-    if '-rfp-' in inFile:
-         out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     print("***made binary")
@@ -408,7 +407,7 @@ def overlay(current_stack, prefix, pic_arrays):
     if "-rfp-" in prefix:
         outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
     else:
-        outFile = open(prefix + 'Some Sizes.csv', 'w')
+        outFile = open(prefix + 'Soma Sizes.csv', 'w')
 
     colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
@@ -473,7 +472,6 @@ with Pool(cpus * 2) as p:
   p.map(one_arg, prefixes)
 
 #one_arg(prefixes[2])
-
 
 
 
