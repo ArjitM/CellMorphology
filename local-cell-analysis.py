@@ -8,6 +8,7 @@ from Cell_objects import *
 from Stack_objects import *
 import numpy as np
 from skimage import util
+from skimage.filters import threshold_local
 import subprocess
 import copy
 import argparse
@@ -89,6 +90,8 @@ def makeBinary(inFile, pic_array):
 
     #pic_array = pic.asarray()
     #out_array = pic.asarray(); #copy dimensions
+    nucleusMode = '-rfp-' in inFile or 'ucleus' in inFile
+
     out_array = [ [0] * len(pic_array[1]) ] * len(pic_array)
     global WHITE
     WHITE = skimage.dtype_limits(pic_array, True)[1]
@@ -101,19 +104,22 @@ def makeBinary(inFile, pic_array):
 
     #out_array = copy.deepcopy(pic_array) #
     out_array = np.array(out_array, dtype=pic_array.dtype.type) # keep same image type
-    basicEdge(pic_array, out_array, regions) # preliminary edge detection via pixel gradient
+    #basicEdge(pic_array, out_array, regions) # preliminary edge detection via pixel gradient
+
+    out_array = threshold_local(out_array, block_size=35, offset=10)
+    
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
 
     regions.setNoiseCompartments(out_array, 0.95)
 
-    enhanceEdges(pic_array, out_array, regions) # use detected averages to guess missing edges
+    enhanceEdges(pic_array, out_array, regions, nucleusMode) # use detected averages to guess missing edges
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
+
+
+
 
     noise_handler = Noise(out_array, iterations=3, binary=True)
     noise_handler.reduce() #reduce salt and pepper noise incorrectly labelled as edges 
-
-    if '-rfp-' in inFile or 'nucleus' in inFile:
-         out_array = skimage.util.invert(out_array) #inversion required for rfp labelled cells (code originally written for gfp)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     print("***made binary")
@@ -261,89 +267,13 @@ def visualize_Clusters(clusters, out_array, inFile):
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
 
 
-# prefixes = [
-# '../Cell Size Project/RD1/expt_1/piece1-rfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_1/piece2-rfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_1/piece3-rfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_1/piece1-rfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_1/piece2-rfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_1/piece3-rfp-normal/piece-',
-# '../Cell Size Project/WT/expt_1/piece1-rfp-normal/piece-',
-# '../Cell Size Project/WT/expt_1/piece2-rfp-normal/piece-',
-# '../Cell Size Project/WT/expt_1/piece3-rfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_2/piece1-rfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_2/piece2-rfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_2/piece3-rfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_2/piece1-rfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_2/piece2-rfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_2/piece3-rfp-normal/piece-',
-# '../Cell Size Project/WT/expt_2/piece1-rfp-normal/piece-',
-# '../Cell Size Project/WT/expt_2/piece2-rfp-normal/piece-',
-# '../Cell Size Project/WT/expt_2/piece3-rfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_3/piece1-rfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_3/piece2-rfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_3/piece3-rfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_3/piece1-rfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_3/piece2-rfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_3/piece3-rfp-normal/piece-',
-# '../Cell Size Project/WT/expt_3/piece1-rfp-normal/piece-',
-# '../Cell Size Project/WT/expt_3/piece2-rfp-normal/piece-',
-# '../Cell Size Project/WT/expt_3/piece3_rfp-normal/piece-',
-# '../vit A/vit_A_free/Mouse_1/eye1p1f2_normal/piece-',
-# '../vit A/vit_A_free/Mouse_1/eye1p1f3_normal/piece-',
-# '../vit A/vit_A_free/Mouse_1/eye1p2f1_normal/piece-',
-# '../vit A/vit_A_free/Mouse_1/eye1p2f2_normal/piece-',
-# '../vit A/vit_A_free/Mouse_1/eye1p2f3_normal/piece-',
-# '../vit A/vit_A_free/Mouse_1/eye2p1f1_normal/piece-',
-# '../vit A/vit_A_free/Mouse_1/eye2p1f2_normal/piece-',
-# '../vit A/vit_A_free/Mouse_1/eye2p1f3_normal/piece-',
-# '../vit A/vit_A_free/Mouse_1/eye1p1f1_normal/piece-',
-# '../vit A/vit_A_free/Mouse_2/eye1p1f1_normal/piece-',
-# '../vit A/vit_A_free/Mouse_2/eye1p1f2_normal/piece-',
-# '../vit A/vit_A_free/Mouse_2/eye1p1f3_normal/piece-',
-# '../vit A/vit_A_free/Mouse_2/eye1p2f1_normal/piece-',
-# '../vit A/vit_A_free/Mouse_2/eye1p2f2_normal/piece-',
-# '../vit A/vit_A_free/Mouse_3/eye1p1f1_normal/piece-',
-# '../vit A/vit_A_free/Mouse_3/eye1p1f2_normal/piece-',
-# '../vit A/vit_A_free/Mouse_3/eye1p1f3_normal/piece-',
-# '../vit A/vit_A_free/Mouse_3/eye1p2f1_normal/piece-',
-# '../vit A/vit_A_free/Mouse_3/eye1p2f2_normal/piece-',
-# '../vit A/vit_A_free/Mouse 3/eye1p2f3_normal/piece-',
-# '../Cell Size Project/RD1/expt_1/piece1-gfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_1/piece2-gfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_1/piece3-gfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_1/piece1-gfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_1/piece2-gfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_1/piece3-gfp-normal/piece-',
-# '../Cell Size Project/WT/expt_1/piece1-gfp-normal/piece-',
-# '../Cell Size Project/WT/expt_1/piece2-gfp-normal/piece-',
-# '../Cell Size Project/WT/expt_1/piece3-gfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_2/piece1-gfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_2/piece2-gfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_2/piece3-gfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_2/piece1-gfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_2/piece2-gfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_2/piece3-gfp-normal/piece-',
-# '../Cell Size Project/WT/expt_2/piece1-gfp-normal/piece-',
-# '../Cell Size Project/WT/expt_2/piece2-gfp-normal/piece-',
-# '../Cell Size Project/WT/expt_2/piece3-gfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_3/piece1-gfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_3/piece2-gfp-normal/piece-',
-# '../Cell Size Project/RD1/expt_3/piece3-gfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_3/piece1-gfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_3/piece2-gfp-normal/piece-',
-# '../Cell Size Project/RD1-P2X7KO/expt_3/piece3-gfp-normal/piece-',
-# '../Cell Size Project/WT/expt_3/piece1-gfp-normal/piece-',
-# '../Cell Size Project/WT/expt_3/piece2-gfp-normal/piece-',
-# '../Cell Size Project/WT/expt_3/piece3-gfp-normal/piece-'
-# ]
-
 locations = [
 '../vit A/vit_A_free/',
 '../Cell Size Project/WT/',
 '../Cell Size Project/RD1-P2X7KO/',
 '../Cell Size Project/RD1/'
 ]
+
 prefixes = []
 for loc in locations:
     for dir1 in next(os.walk(loc))[1]: #Expt #/Mouse#
@@ -351,6 +281,10 @@ for loc in locations:
             for dir2 in next(os.walk(loc + dir1))[1]:
                 if 'normal' in dir2:
                     prefixes.append(loc + dir1 + "/" + dir2 + "/piece-")
+                else:
+                    for dir3 in next(os.walk(loc + dir1 + "/" + dir2))[1]:
+                        if 'normal' in dir3:
+                            prefixes.append(loc + dir1 + "/" + dir2 + "/" + dir3 + "/piece-")
         except:
             pass
 
@@ -403,7 +337,7 @@ def overlay(current_stack, prefix, pic_arrays):
     if "-rfp-" in prefix:
         outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
     else:
-        outFile = open(prefix + 'Some Sizes.csv', 'w')
+        outFile = open(prefix + 'Soma Sizes.csv', 'w')
 
     colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
@@ -457,11 +391,11 @@ def one_arg(prefix):
     except Exception as e:
         print("Error occured in processing {0}: {1}".format(prefix, e))
         logging.error(traceback.format_exc())
-    # try:
-    #     subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")))
-    # except Exception as e:
-    #     print("Error occured in copying {0}: {1}".format(prefix, e))
-    #     logging.error(traceback.format_exc())
+    try:
+        subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")), shell=True)
+    except Exception as e:
+        print("Error occured in copying {0}: {1}".format(prefix, e))
+        logging.error(traceback.format_exc())
 
 # cpus = multiprocessing.cpu_count()
 # with Pool(1) as p:
