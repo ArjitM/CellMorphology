@@ -16,8 +16,9 @@ import pickle
 import logging
 import traceback
 import os
+import matlab.engine
 
-def makeClusters(binary, boundary, stack_slice):
+def makeClusters_deprecated(binary, boundary, stack_slice):
     
     Cluster.clusters = []
     if len(boundary) == 0:
@@ -89,6 +90,21 @@ def makeClusters(binary, boundary, stack_slice):
         Cluster.clusters.append(Cluster(binary, c, stack_slice))
     print("$$$$$$$$$$$$$$", len(clusterBounds))
     return Cluster.clusters
+
+
+def makeClusters(binary, inFile, stack_slice):
+    eng = matlab.engine.start_matlab()
+    img = eng.imread(inFile.replace('.tif', '_Binary.tif'))
+    #print(img)
+    boundaries = eng.bwboundaries(img)
+    eng.quit()
+    clusterBounds = []
+    for bound in boundaries:
+        clusterBounds.append([tuple(np.array(bp).astype(np.uint16)) for bp in bound]) #convert from matlab double
+    boundary = [item for sublist in clusterBounds for item in sublist]
+    for c in clusterBounds:
+        Cluster.clusters.append(Cluster(binary, c, stack_slice))
+    return Cluster.clusters, boundary
 
 def makeBinary(inFile, pic_array, pic):
 
@@ -220,10 +236,10 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
             clusters = loadClusters(inFile, stack_slice)
         except (FileNotFoundError, EOFError):
             bin_array = getBinary(inFile, pic_array, binarized=True)
-            boundary = findBoundaryPoints(bin_array)
-            superimposeBoundary(inFile, pic_array, boundary)
+            #boundary = findBoundaryPoints(bin_array)
             Cluster.pic = pic_array
-            clusters = makeClusters(bin_array, boundary, stack_slice)
+            clusters, boundary = makeClusters(bin_array, inFile, stack_slice)
+            superimposeBoundary(inFile, pic_array, boundary)
             saveClusters(inFile, clusters)
         finally:
             makeCells(inFile, clusters)
@@ -234,11 +250,11 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
         bin_array = getBinary(inFile, pic_array, binarized)
         #print(bin_array)
         #print("#######hhhhhhhhhh", len(bin_array))
-        boundary = findBoundaryPoints(bin_array)
+        #boundary = findBoundaryPoints(bin_array)
         #print("#############", len(boundary))
-        superimposeBoundary(inFile, pic_array, boundary)
+        
         Cluster.pic = pic_array
-        clusters = makeClusters(bin_array, boundary, stack_slice)
+        clusters = makeClusters(bin_array, inFile, stack_slice)[0]
         saveClusters(inFile, clusters)  
         makeCells(inFile, clusters) 
         saveCells(inFile, stack_slice)
