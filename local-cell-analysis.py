@@ -17,6 +17,7 @@ import logging
 import traceback
 import os
 import matlab.engine
+from operator import add
 
 def makeClusters_deprecated(binary, boundary, stack_slice):
     
@@ -100,7 +101,8 @@ def makeClusters(binary, inFile, stack_slice):
     eng.quit()
     clusterBounds = []
     for bound in boundaries:
-        clusterBounds.append([tuple(np.array(bp).astype(np.uint16)) for bp in bound]) #convert from matlab double
+        clusterBounds.append([tuple( map( add, (np.array(bp).astype(np.uint16)), (-1, -1) ) ) for bp in bound]) #convert from matlab double
+        #matlab array indexing starts at 1!
     boundary = [item for sublist in clusterBounds for item in sublist]
     for c in clusterBounds:
         Cluster.clusters.append(Cluster(binary, c, stack_slice))
