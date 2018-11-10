@@ -8,7 +8,7 @@ from Cell_objects import *
 from Stack_objects import *
 import numpy as np
 from skimage import util
-from skimage.filters import threshold_local
+from skimage.filters import threshold_local, threshold_otsu
 import subprocess
 import copy
 import argparse
@@ -32,6 +32,10 @@ def makeClusters(binary, boundary, stack_slice):
         #current = clusterBounds[-1] #last cluster element
         while True:
             if current:
+                #print(len(current), len(boundary))
+                if len(current) > 1000:
+                    print("STOPPP")
+                    break
                 point = current[-1]
             else:
                 break
@@ -106,17 +110,17 @@ def makeBinary(inFile, pic_array, pic):
     out_array = np.array(out_array, dtype=pic_array.dtype.type) # keep same image type
     #basicEdge(pic_array, out_array, regions) # preliminary edge detection via pixel gradient
 
-    out_array = pic_array > threshold_local(pic_array, block_size=35, offset=10).astype(pic_array.dtype.type) #NOT SCALED MUST FIX
+    out_array = pic_array > threshold_local(pic_array, block_size=35).astype(pic_array.dtype.type) #NOT SCALED MUST FIX
+    out_array = out_array.astype(pic_array.dtype.type)
+    out_array = np.array([ [WHITE if p else 0 for p in row] for row in out_array], dtype = pic_array.dtype.type)
+    print(out_array)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
 
     regions.setNoiseCompartments(out_array, 0.95)
 
-    enhanceEdges(pic_array, out_array, regions, nucleusMode) # use detected averages to guess missing edges
-    skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
-
-
-
+    #enhanceEdges(pic_array, out_array, regions, nucleusMode=False) # use detected averages to guess missing edges
+    #skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
 
     noise_handler = Noise(out_array, iterations=3, binary=True)
     noise_handler.reduce() #reduce salt and pepper noise incorrectly labelled as edges 
@@ -394,17 +398,17 @@ def one_arg(prefix):
     except Exception as e:
         print("Error occured in processing {0}: {1}".format(prefix, e))
         logging.error(traceback.format_exc())
-    try:
-        subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")), shell=True)
-    except Exception as e:
-        print("Error occured in copying {0}: {1}".format(prefix, e))
-        logging.error(traceback.format_exc())
+    # try:
+    #     subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")), shell=True)
+    # except Exception as e:
+    #     print("Error occured in copying {0}: {1}".format(prefix, e))
+    #     logging.error(traceback.format_exc())
 
 # cpus = multiprocessing.cpu_count()
 # with Pool(1) as p:
 #   p.map(one_arg, prefixes[:4])
 
-one_arg('../Cell Size Project/RD1/expt_1/piece2-rfp-normal/piece-')
+one_arg('../Cell Size Project/RD1/expt_1/piece2-gfp-normal/piece-')
 
 
 
