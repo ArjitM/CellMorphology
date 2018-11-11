@@ -150,7 +150,7 @@ class Noise:
         self.detectNoise = self.detectNoise_BIN if binary else self.detectNoise_OG
 
     def detectNoise_OG(self, i, j, neighbors):
-        cut = regions.getCompartment(i, j).std() / 3
+        cut = self.regions.getCompartment(i, j).std() / 3
         num = len(neighbors)
         hits = 0
         for (y, x) in neighbors:
@@ -234,6 +234,8 @@ def basicEdge(pic_array, out_array, regions):
             else:
                 out_array[i][j] = bin_WHITE #WHITE //using boolean representation to save memory
     return out_array
+
+
 
 def enhanceEdges(pic_array, out_array, regions, nucleusMode=False):
     global borderMean
