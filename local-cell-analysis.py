@@ -324,7 +324,7 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
-    x = 1
+    x = 19
     if split:
         binarized, clustered = True, True
     elif clustered:
@@ -342,7 +342,7 @@ def parallel(prefix, binarized, clustered, split, overlaid):
 
             pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split, overlay))
 
-            stack_slice.pruneCells(0.65)
+            #stack_slice.pruneCells(0.65)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
             current_stack.addSlice(stack_slice)
 
@@ -433,7 +433,7 @@ def one_arg(prefix):
 # with Pool(1) as p:
 #   p.map(one_arg, prefixes[:4])
 
-one_arg('../Cell Size Project/RD1/expt_1/piece2-gfp-normal/piece-')
+one_arg('../Cell Size Project/RD1/expt_1/piece1-rfp-normal/piece-')
 
 
 

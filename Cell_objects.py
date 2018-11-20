@@ -468,8 +468,6 @@ class Cell(Cluster):
 
         normalized_distances = list(np.sqrt([ ((distance(b, self.pivot) - ideal)/ideal)**2 for b in self.boundary]))
 
-
-        #avgDiameter = np.mean(diameters)
         self.roundness = 1 - np.mean(normalized_distances)
         return self.roundness
 

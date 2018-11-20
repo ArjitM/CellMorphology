@@ -257,6 +257,9 @@ def enhanceEdges(pic_array, out_array, regions, nucleusMode=False):
             #if regions.getCompartment(i, j).noise_compartment == True:
                #out_array[i][j] = WHITE // 2
 
+def removeBloodVessels(binary, pic_array):
+    pass
+
 
 def findBoundaryPoints(binary):
     boundary = []
