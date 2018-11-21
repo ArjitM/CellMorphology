@@ -18,6 +18,7 @@ import traceback
 import os
 import matlab.engine
 from operator import add
+import scipy.ndimage
 
 def makeClusters_deprecated(binary, boundary, stack_slice):
     
@@ -132,7 +133,7 @@ def makeBinary(inFile, pic_array, pic):
     noise_handler = Noise(out_array, regions, iterations=3, binary=False)
     noise_handler.reduce() 
 
-    out_array = pic_array > threshold_local(pic_array, block_size=35).astype(pic_array.dtype.type) #NOT SCALED MUST FIX
+    out_array = pic_array > threshold_local(pic_array, block_size=35).astype(pic_array.dtype.type) 
     out_array = out_array.astype(pic_array.dtype.type)
     out_array = np.array([ [WHITE if p else 0 for p in row] for row in out_array], dtype = pic_array.dtype.type)
     #print(out_array)
@@ -151,7 +152,33 @@ def makeBinary(inFile, pic_array, pic):
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     print("***made binary")
+
+    labeled, num_objects = scipy.ndimage.label(out_array)
+    print("Objects detected", num_objects)
+    print(labeled)
+    visualize_labeled(labeled, inFile)
+
+    outFile = open(inFile.replace('.tif', '_labeled.pkl'), 'wb')
+    pickle.dump(labeled, outFile)
+    outFile.close()
+
     return out_array
+
+
+def visualize_labeled(labeled, inFile):
+
+    labeled_image = skimage.color.gray2rgb(labeled)
+    colorLimit = skimage.dtype_limits(labeled, True)[1]
+    colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
+    for i in range(len(labeled_image)):
+        for j in range(len(labeled_image[0])):
+            if labeled[i,j] == 0:
+                labeled_image[i,j] = [0, 0, 0]
+            else:
+                labeled_image[i,j] = colored[labeled[i,j] % len(colored)]
+    print(labeled_image.tolist())
+    
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_labeled.tif'), labeled_image)
 
 
 def makeCells(inFile, clusters=Cluster.clusters):
@@ -205,9 +232,7 @@ def loadClusters(inFile, stack_slice):
     return Cluster.clusters
 
 def saveClusters(inFile, clusters=Cluster.clusters):
-    #print("clusters made")
     outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
-    #print("will be saved ", len(clusters))
     pickle.dump(clusters, outFile)
     outFile.close()
 
