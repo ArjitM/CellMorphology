@@ -19,6 +19,7 @@ from cellprofiler.modules import _help, threshold, identifyprimaryobjects
 from cellprofiler.modules.identifyprimaryobjects import *
 import cellprofiler.modules
 import cellprofiler.image
+from cellprofiler.image import *
 
 class IdentifyPrimaryObjectsBridge(IdentifyPrimaryObjects):
 
@@ -27,4 +28,9 @@ class IdentifyPrimaryObjectsBridge(IdentifyPrimaryObjects):
 		super(IdentifyPrimaryObjects, self).__init__()
 		self.advanced = True
 		self.unclump_method = UN_SHAPE
-		
+
+inFile, binFile, labeledFile = sys.argv[1], sys.argv[2], sys.argv[3]
+
+
+
+inputImage = Image(image=pic_array, mask=bin_array)
