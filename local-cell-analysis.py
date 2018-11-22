@@ -148,7 +148,7 @@ def makeBinary(inFile, pic_array, pic):
     #skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
 
     noise_handler = Noise(out_array, iterations=3, binary=True)
-    noise_handler.reduce() #reduce salt and pepper noise incorrectly labelled as edges 
+    noise_handler.reduce() #reduce salt and pepper noise incorrectly labeled as edges 
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     print("***made binary")
@@ -161,6 +161,8 @@ def makeBinary(inFile, pic_array, pic):
     outFile = open(inFile.replace('.tif', '_labeled.pkl'), 'wb')
     pickle.dump(labeled, outFile)
     outFile.close()
+
+    os.system('python2 declump_bridge.py {0} {1} {2}'.format(inFile, inFile.replace('.tif', '_Binary.tif'), inFile.replace('.tif', '_labeled.pkl')))
 
     return out_array
 

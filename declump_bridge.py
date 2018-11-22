@@ -21,6 +21,21 @@ import cellprofiler.modules
 import cellprofiler.image
 from cellprofiler.image import *
 
+import skimage
+from skimage import external
+
+''' 
+Changed required to CellProfiler Source code:
+In identifyprimaryobjects.py
+
+    LINE 1131: def separate_neighboring_objects(self, workspace, labeled_image, object_count):
+    CHANGE TO: def separate_neighboring_objects(self, cpimage, labeled_image, object_count):
+
+    COMMENT LINES 1147 AND 1148:         
+    	#cpimage = workspace.image_set.get_image(
+        ##        self.x_name.value, must_be_grayscale=True)
+
+'''
 class IdentifyPrimaryObjectsBridge(IdentifyPrimaryObjects):
 
 	def __init__(self):
@@ -31,6 +46,23 @@ class IdentifyPrimaryObjectsBridge(IdentifyPrimaryObjects):
 
 inFile, binFile, labeledFile = sys.argv[1], sys.argv[2], sys.argv[3]
 
+with skimage.external.tifffile.TiffFile(inFile) as pic:
+	pic_array = pic.asarray()
 
+with skimage.external.tifffile.TiffFile(binFile) as binary:
+	bin_array = binary.asarray()
 
+with open(labeledFile, 'rb') as labeled:
+	labeled_array = pickle.load(labeled)
+
+primaryObjects = IdentifyPrimaryObjectsBridge()
 inputImage = Image(image=pic_array, mask=bin_array)
+watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, labeled_array, len(labeled_array))
+
+print(watershed_boundaries)
+
+
+
+
+
+
