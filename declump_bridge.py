@@ -1,4 +1,4 @@
-#USE PYTHON 2
+#USE PYTHON 2 to access cellprofiler project and dependencies
 
 import sys
 
@@ -23,6 +23,7 @@ from cellprofiler.image import *
 
 import skimage
 from skimage import external
+import pickle
 
 ''' 
 Changed required to CellProfiler Source code:
@@ -40,9 +41,10 @@ class IdentifyPrimaryObjectsBridge(IdentifyPrimaryObjects):
 
 	def __init__(self):
 
+		self.threshold = threshold.Threshold()
 		super(IdentifyPrimaryObjects, self).__init__()
-		self.advanced = True
-		self.unclump_method = UN_SHAPE
+		self.use_advanced.value = True
+		self.__dict__['unclump_method'] = UN_INTENSITY
 
 inFile, binFile, labeledFile = sys.argv[1], sys.argv[2], sys.argv[3]
 
@@ -59,6 +61,13 @@ primaryObjects = IdentifyPrimaryObjectsBridge()
 inputImage = Image(image=pic_array, mask=bin_array)
 watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, labeled_array, len(labeled_array))
 
+primaryObjects.__dict__['unclump_method'] = UN_SHAPE
+watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, watershed_boundaries, len(watershed_boundaries))
+
+with open(inFile.replace('.tif', '_segmented.pkl'), 'wb') as segmentedFile:
+	pickle.dump(watershed_boundaries, segmentedFile)
+
+print("num_objects", object_count)
 print(watershed_boundaries)
 
 

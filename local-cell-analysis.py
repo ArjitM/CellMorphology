@@ -159,15 +159,19 @@ def makeBinary(inFile, pic_array, pic):
     visualize_labeled(labeled, inFile)
 
     outFile = open(inFile.replace('.tif', '_labeled.pkl'), 'wb')
-    pickle.dump(labeled, outFile)
+    pickle.dump(labeled, outFile, protocol=2)
     outFile.close()
 
-    os.system('python2 declump_bridge.py {0} {1} {2}'.format(inFile, inFile.replace('.tif', '_Binary.tif'), inFile.replace('.tif', '_labeled.pkl')))
+    os.system('python2 declump_bridge.py "{0}" "{1}" "{2}"'.format(inFile, inFile.replace('.tif', '_Binary.tif'), inFile.replace('.tif', '_labeled.pkl')))
+    with open(inFile.replace('.tif', '_segmented.pkl'), 'rb') as segmentedFile:
+        segmented = pickle.load(segmentedFile, encoding='latin1')
+
+    visualize_labeled(segmented, inFile, name='_segmented')
 
     return out_array
 
 
-def visualize_labeled(labeled, inFile):
+def visualize_labeled(labeled, inFile, name='_labeled'):
 
     labeled_image = skimage.color.gray2rgb(labeled)
     colorLimit = skimage.dtype_limits(labeled, True)[1]
@@ -178,9 +182,9 @@ def visualize_labeled(labeled, inFile):
                 labeled_image[i,j] = [0, 0, 0]
             else:
                 labeled_image[i,j] = colored[labeled[i,j] % len(colored)]
-    print(labeled_image.tolist())
-    
-    skimage.external.tifffile.imsave(inFile.replace('.tif', '_labeled.tif'), labeled_image)
+    labeled_image = labeled_image.astype(np.uint8)
+    #print(labeled_image.tolist()) 
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '{0}.tif'.format(name)), labeled_image)
 
 
 def makeCells(inFile, clusters=Cluster.clusters):
@@ -351,7 +355,7 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
-    x = 19
+    x = 1
     if split:
         binarized, clustered = True, True
     elif clustered:
