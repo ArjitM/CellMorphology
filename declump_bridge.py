@@ -59,10 +59,12 @@ with open(labeledFile, 'rb') as labeled:
 
 primaryObjects = IdentifyPrimaryObjectsBridge()
 inputImage = Image(image=pic_array, mask=bin_array)
-watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, labeled_array, len(labeled_array))
+#watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, labeled_array, len(labeled_array))
 
 primaryObjects.__dict__['unclump_method'] = UN_SHAPE
-watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, watershed_boundaries, len(watershed_boundaries))
+#$watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, watershed_boundaries, len(watershed_boundaries))
+watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, labeled_array, len(labeled_array))
+
 
 with open(inFile.replace('.tif', '_segmented.pkl'), 'wb') as segmentedFile:
 	pickle.dump(watershed_boundaries, segmentedFile)

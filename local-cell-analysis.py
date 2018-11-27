@@ -168,6 +168,13 @@ def makeBinary(inFile, pic_array, pic):
 
     visualize_labeled(segmented, inFile, name='_segmented')
 
+    for i in range(len(segmented)):
+        for j in range(len(segmented[0])):
+            if segmented[i,j] != 0:
+                neighbor_points = getNeighborIndices(segmented, i, j)
+                for npoint in neighbor_points:
+                    if segmented[npoint[0], npoint[1]] != 0 and segmented[npoint[0], npoint[1]] != segmented[i,j]:
+                        segmented[i,j] = 0
     return out_array
 
 
@@ -197,9 +204,10 @@ def makeCells(inFile, clusters=Cluster.clusters):
             noise_clusters.append(c)
         else:
             c.pruneCusps()
-            c.propagateInternalBoundaries()
-            #c.showCusps()  #WONT WORK with boolean binary
-            c.splitByEdges()
+            #c.propagateInternalBoundaries()
+            c.showCusps()  #WONT WORK with boolean binary
+            #c.splitByEdges()
+            c.transformToCell()
     for c in noise_clusters:
         c.kill()
     if Cluster.clusters:
@@ -355,7 +363,7 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
-    x = 1
+    x = 5
     if split:
         binarized, clustered = True, True
     elif clustered:
@@ -388,6 +396,8 @@ def parallel(prefix, binarized, clustered, split, overlaid):
         else:
             print(prefix)
             x += 1
+            if x > 6: 
+                break
 
     current_stack.collate_slices()
     overlay(current_stack, prefix, pic_arrays)
@@ -464,7 +474,7 @@ def one_arg(prefix):
 # with Pool(1) as p:
 #   p.map(one_arg, prefixes[:4])
 
-one_arg('../Cell Size Project/RD1/expt_1/piece1-rfp-normal/piece-')
+one_arg('../Cell Size Project/RD1/expt_1/piece1-gfp-normal/piece-')
 
 
 
