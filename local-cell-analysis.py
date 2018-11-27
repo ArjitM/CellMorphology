@@ -174,7 +174,7 @@ def makeBinary(inFile, pic_array, pic):
                 neighbor_points = getNeighborIndices(segmented, i, j)
                 for npoint in neighbor_points:
                     if segmented[npoint[0], npoint[1]] != 0 and segmented[npoint[0], npoint[1]] != segmented[i,j]:
-                        segmented[i,j] = 0
+                        out_array[i,j] = 0
     return out_array
 
 
