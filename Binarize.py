@@ -173,7 +173,7 @@ class Noise:
     def smooth(self):
         for i in range(len(self.image_values)):
             for j in range(len(self.image_values)):
-                change, value = self.detectNoise(i, j, getNeighborIndices(self.image_values, i, j))
+                change, value = self.detectNoise(i, j, list(getNeighborIndices(self.image_values, i, j)))
                 if change:
                     self.image_values[i][j] = value
 
