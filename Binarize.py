@@ -183,12 +183,11 @@ class Noise:
 
 
 def getNeighborIndices(image_values, i, j):
-    neighbors = []
     for ki in range(-1, 2):
         for kj in range(-1, 2):
             if i + ki >= 0 and j + kj >= 0 and i + ki < len(image_values) and j + kj < len(image_values[0]) and not (ki==0 and kj==0):
-                neighbors.append((i+ki, j+kj))
-    return neighbors
+                yield((i+ki, j+kj))
+
 
 def getForwardNeighbors(image, previous, point):
     assert previous != point, "Previous point cannot be the same point"
@@ -261,15 +260,34 @@ def removeBloodVessels(binary, pic_array):
     pass
 
 
-def findBoundaryPoints(binary):
+def findBoundaryPoints(binary, segmented=False):
     boundary = []
-    for i in range(len(binary)):
-        for j in range(len(binary[0])):
-            n_touching = len(list(filter(lambda p: binary[p[0]][p[1]] == bin_WHITE, getNeighborIndices(binary, i, j))))
-            #number of neighbors that are within a potential cell
-            if binary[i][j] == bin_WHITE and n_touching != 8:
-                boundary.append((i, j))#, n_touching > 5)) #last argument is cusp boolean
+    if not segmented:
+        for i in range(len(binary)):
+            for j in range(len(binary[0])):
+                n_touching = len(list(filter(lambda p: binary[p[0]][p[1]] == bin_WHITE, getNeighborIndices(binary, i, j))))
+                #number of neighbors that are within a potential cell
+                if binary[i][j] == bin_WHITE and n_touching != 8:
+                    boundary.append((i, j))#, n_touching > 5)) #last argument is cusp boolean
+
+    else:
+        return findSegmentedBoundary(binary)
     return boundary
+
+def findSegmentedBoundary(segmented):
+    segmentedBoundary = {} #this is a dictionary with keys object numbers, values boundaries
+    for i in range(len(segmented)):
+        for j in range(len(segmented[0])):
+            if segmented[i,j] != 0:
+                neighbor_points = getNeighborIndices(segmented, i, j)
+                for npoint in neighbor_points:
+                    if segmented[npoint[0], npoint[1]] != segmented[i,j]:
+                        try:
+                            segmentedBoundary[segmented[i,j]].append((i,j))
+                        except KeyError:
+                            segmentedBoundary[segmented[i,j]] = [(i,j)]
+
+    return segmentedBoundary
 
 def internalBorderTest(pic_array, out_array, boundary):
     internalBorder = out_array[:] #pseudo-deep copy

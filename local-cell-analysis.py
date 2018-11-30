@@ -20,7 +20,7 @@ import matlab.engine
 from operator import add
 import scipy.ndimage
 
-def makeClusters_deprecated(binary, boundary, stack_slice):
+def makeClusters(segmented, boundary, stack_slice):
     
     Cluster.clusters = []
     if len(boundary) == 0:
@@ -42,11 +42,11 @@ def makeClusters_deprecated(binary, boundary, stack_slice):
                 point = current[-1]
             else:
                 break
-            neighbor_points = filter(lambda x: (x[0], x[1]) in getNeighborIndices(binary, point[0], point[1]), boundary)
+            neighbor_points = filter(lambda x: (x[0], x[1]) in boundary, getNeighborIndices(segmented, point[0], point[1])) #attempt Moore-neighbor
             try:
                 neighbor = next(neighbor_points)
             except StopIteration:    
-                neighbors = getNeighborIndices(binary, point[0], point[1])
+                neighbors = list(getNeighborIndices(segmented, point[0], point[1])) #generator to list
 
                 if (pivot[0], pivot[1]) not in neighbors:
                     #remove internal loops if present; switch control back to point where inner loop intersects boundary and delete loop points
@@ -63,8 +63,8 @@ def makeClusters_deprecated(binary, boundary, stack_slice):
                         ex_line = False
                         k = -2 #start with second-last point
                         while abs(k) <= len(current):
-                            fork = iter(getNeighborIndices(binary, current[k][0], current[k][1]))
-                            for n in fork: #getNeighborIndices(binary, current[k][0], current[k][1]):
+                            fork = getNeighborIndices(segmented, current[k][0], current[k][1])
+                            for n in fork: #getNeighborIndices(segmented, current[k][0], current[k][1]):
                                 if n in boundary:
                                     del current[k+1:]
                                     current.append(n)
@@ -89,12 +89,12 @@ def makeClusters_deprecated(binary, boundary, stack_slice):
 
     Cluster.clusters = []
     for c in clusterBounds:
-        Cluster.clusters.append(Cluster(binary, c, stack_slice))
+        Cluster.clusters.append(Cluster(segmented, c, stack_slice))
     print("$$$$$$$$$$$$$$", len(clusterBounds))
     return Cluster.clusters
 
 
-def makeClusters(binary, inFile, stack_slice):
+def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = []
     eng = matlab.engine.start_matlab()
     img = eng.imread(inFile.replace('.tif', '_Binary.tif'))
@@ -114,6 +114,7 @@ def makeBinary(inFile, pic_array, pic):
 
     #pic_array = pic.asarray()
     #out_array = pic.asarray(); #copy dimensions
+    global nucleusMode
     nucleusMode = '-rfp-' in inFile or 'ucleus' in inFile
 
     out_array = [ [0] * len(pic_array[1]) ] * len(pic_array)
@@ -155,17 +156,16 @@ def makeBinary(inFile, pic_array, pic):
 
     labeled, num_objects = scipy.ndimage.label(out_array)
     print("Objects detected", num_objects)
-    print(labeled)
+    #print(labeled)
     visualize_labeled(labeled, inFile)
 
     outFile = open(inFile.replace('.tif', '_labeled.pkl'), 'wb')
     pickle.dump(labeled, outFile, protocol=2)
     outFile.close()
-
+    # Cellprofiler and dependencies are built in python2, therefore use pickle for variable handoffs
     os.system('python2 declump_bridge.py "{0}" "{1}" "{2}"'.format(inFile, inFile.replace('.tif', '_Binary.tif'), inFile.replace('.tif', '_labeled.pkl')))
-    with open(inFile.replace('.tif', '_segmented.pkl'), 'rb') as segmentedFile:
-        segmented = pickle.load(segmentedFile, encoding='latin1')
 
+    segmented = loadObjects(inFile)
     visualize_labeled(segmented, inFile, name='_segmented')
 
     for i in range(len(segmented)):
@@ -176,6 +176,11 @@ def makeBinary(inFile, pic_array, pic):
                     if segmented[npoint[0], npoint[1]] != 0 and segmented[npoint[0], npoint[1]] != segmented[i,j]:
                         out_array[i,j] = 0
     return out_array
+
+def loadObjects(inFile):
+    with open(inFile.replace('.tif', '_segmented.pkl'), 'rb') as segmentedFile:
+        segmented = pickle.load(segmentedFile, encoding='latin1')
+    return segmented
 
 
 def visualize_labeled(labeled, inFile, name='_labeled'):
@@ -407,14 +412,14 @@ def overlay(current_stack, prefix, pic_arrays):
     out_rgb = skimage.color.gray2rgb(pic_arrays[0])
     out_rgb.fill(0)
     x = 0
-    if "-rfp-" in prefix:
+    if nucleusMode:
         outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
     else:
         outFile = open(prefix + 'Soma Sizes.csv', 'w')
 
     colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
-    cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]
+    cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]; green = [colorLimit, colorLimit, 0]
 
     outFile.write("LARGEST CELLS ARE \n")
     for c in current_stack.large_Cells:

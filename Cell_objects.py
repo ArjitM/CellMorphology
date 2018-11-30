@@ -7,6 +7,7 @@ from skimage import morphology
 from skimage import filters
 from skimage import color
 from Binarize import *
+import scipy.ndimage
 
 global WHITE
 WHITE = None
@@ -358,15 +359,17 @@ class Cell(Cluster):
     def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
         super().__init__(binary, boundary, stack_slice, internalEdges)
         #stack_slice.addCell(self)
-        self.roundness = 0
+        #self.roundness = 0
         if not self.internalEdges:
             self.internalBoundaryHits = 0 #if cell is in "controversial" lots of boundaries region, it is killed
+            _ = self.area #invoke property to update interior
             self.interior = [] #this is updated by the area function
-            self.area = self.area()
+            self.center = scipy.ndimage.measurements.center_of_mass(self.interior + self.boundary)
+            #self.area = self.area()
             if self.internalBoundaryHits > self.area / 3:
                 self.kill()
-            else:
-                self.roundness = self.getRoundness()
+            #else:
+            #    self.roundness = self.getRoundness()
             # self.colored = skimage.color.grey2rgb(self.binary)
 
 
@@ -440,8 +443,9 @@ class Cell(Cluster):
                 hits += 1        
         return hits >= k // 3 and self.pointWithin(other_cell.pivot), hits >= k // 6
 
-
+    @property
     def area(self):
+        self.interior = []
         bounds = self.getBoundary2D() #returns row-wise 2d matrix
         area = 0
         for b in bounds: #boundary points in each row
@@ -455,7 +459,8 @@ class Cell(Cluster):
         return area
 
 
-    def getRoundness(self):
+    @property
+    def roundness(self):
         circum = len(self.boundary)
         ideal = circum / (2 * math.pi)
         # k = circum // 8
@@ -468,8 +473,8 @@ class Cell(Cluster):
 
         normalized_distances = list(np.sqrt([ ((distance(b, self.pivot) - ideal)/ideal)**2 for b in self.boundary]))
 
-        self.roundness = 1 - np.mean(normalized_distances)
-        return self.roundness
+        return 1 - np.mean(normalized_distances)
+        #return self.roundness
 
 
     def kill(self):
