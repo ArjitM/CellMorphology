@@ -279,13 +279,20 @@ def findSegmentedBoundary(segmented):
     for i in range(len(segmented)):
         for j in range(len(segmented[0])):
             if segmented[i,j] != 0:
-                neighbor_points = getNeighborIndices(segmented, i, j)
-                for npoint in neighbor_points:
-                    if segmented[npoint[0], npoint[1]] != segmented[i,j]:
+
+                if i == 0 or j == 0 or i == (len(segmented)-1) or j == (len(segmented[0])-1):
                         try:
                             segmentedBoundary[segmented[i,j]].append((i,j))
                         except KeyError:
                             segmentedBoundary[segmented[i,j]] = [(i,j)]
+
+                else:
+                    for npoint in getNeighborIndices(segmented, i, j):
+                        if segmented[npoint[0], npoint[1]] != segmented[i,j]:
+                            try:
+                                segmentedBoundary[segmented[i,j]].append((i,j))
+                            except KeyError:
+                                segmentedBoundary[segmented[i,j]] = [(i,j)]
 
     return segmentedBoundary
 

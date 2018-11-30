@@ -7,7 +7,11 @@ class Stack_slice:
         self.cells = cells
         self.number = number
         self.finalizedCellSlice = Stack_slice_largest(number, [])
-        self.rejected_Cells = []
+        #reasons for cell candidate rejection
+        self.roundness_rejected_Cells = []
+        self.contained_Cells = []
+        self.split_Cells = []
+        self.overlapping_Cells = []
 
     def addCell(self, cell):
         if isinstance(cell, Cell):
@@ -20,7 +24,7 @@ class Stack_slice:
 
     def pruneCells(self, roundness_thresh=0.75):
         self.cells = [c for c in self.cells if c.roundness > roundness_thresh]
-        self.cells = [c for c in self.cells if c.area > 15 and c.area < 500]
+        self.cells = [c for c in self.cells if c.area > 50 and c.area < 500]
 
 class Stack_slice_largest(Stack_slice):
 
@@ -35,7 +39,6 @@ class Stack:
         self.stack_slices = stack_slices
         self.large_Cells = []
         self.largest_Cells = []
-        self.rejected_Cells = []
 
     def addSlice(self, stack_slice):
         self.stack_slices.append(stack_slice)
@@ -57,12 +60,13 @@ class Stack:
                     if hits > 1:
                         break
 
-                if hits > 1 or cell.internalEdges: #limit reached
-                    large_replace = None
+                if hits > 1: # or cell.internalEdges: #limit reached
+                    self.split_Cells.append(cell)
                     continue
 
                 elif hits == 1:
                     self.large_Cells.remove(large_replace)
+                    large_replace.stack_slice.contained_Cells.append(large_replace)
                     self.large_Cells.append(cell)
 
                 else:
@@ -71,13 +75,16 @@ class Stack:
                         (contained, overlapping) = large_Cell.contains_or_overlaps(cell)
                         if contained: #contained
                             new_cell = False
+                            cell.stack_slice.contained_Cells.append(cell)
                             break
                         if overlapping: #overlapping
                             if large_Cell.area > cell.area:
                                 new_cell = False
+                                cell.stack_slice.overlapping_Cells.append(cell)
                                 break
                             else:
                                 large_replace.append(large_Cell)
+                                large_replace.stack_slice.overlapping_Cells.append(large_Cell)
 
                     if new_cell:
                         self.large_Cells.append(cell)
@@ -87,11 +94,11 @@ class Stack:
                             self.large_Cells.remove(lr)
 
         for lg in self.large_Cells:
-            if not lg.internalEdges and lg.roundness > 0.6:
+            if not lg.internalEdges and lg.roundness > 0.4:
                 lg.stack_slice.finalizedCellSlice.addCell(lg)
                 self.largest_Cells.append(lg)
             else:
-                lg.stack_slice.rejected_Cells.append(lg)
+                lg.stack_slice.roundness_rejected_Cells.append(lg)
 
 
 

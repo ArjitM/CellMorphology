@@ -364,7 +364,7 @@ class Cell(Cluster):
             self.internalBoundaryHits = 0 #if cell is in "controversial" lots of boundaries region, it is killed
             _ = self.area #invoke property to update interior
             self.interior = [] #this is updated by the area function
-            self.center = scipy.ndimage.measurements.center_of_mass(self.interior + self.boundary)
+            #self.center = scipy.ndimage.measurements.center_of_mass(self.interior + self.boundary)
             #self.area = self.area()
             if self.internalBoundaryHits > self.area / 3:
                 self.kill()

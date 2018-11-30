@@ -20,15 +20,19 @@ import matlab.engine
 from operator import add
 import scipy.ndimage
 
-def makeClusters(segmented, stack_slice):
+def makeClusters(segmented, binary, stack_slice):
     
     Cluster.clusters = []
     boundaries = findSegmentedBoundary(segmented)
     clusterBounds = []
+    print(boundaries)
     
-    for object_num in range(len(boundaries)):
-        #clusterBounds.append([boundary[0]])
+    for object_num in range(1, len(boundaries) + 1): #object numbering begins at 1
+        #clusterBounds.append(boundaries[object_num]) #<<-- simple way to get all boundary points but not account for order/loops/contained cells
+
         boundary = boundaries[object_num]
+        clusterBounds.append([boundary[0]])
+        
         current = [boundary[0]]
         pivot = boundary.pop(0)
         #current = clusterBounds[-1] #last cluster element
@@ -74,21 +78,25 @@ def makeClusters(segmented, stack_slice):
                             k -= 1
 
                         if not ex_line: #not internal loop nor extended line
-                            #print("cluster boundary incomplete")
+                            print("cluster boundary incomplete")
                             current.pop()
                 else:
-                    break #cluster is contiguous; exits outer while loop
+                    if len(boundary) < len(current):
+                        break #cluster is contiguous; exits outer while loop
+                    else:
+                        current = boundary.pop(0) #likely detected object within larger object therefore kill
+
             else:
                 current.append(neighbor)
                 boundary.remove(neighbor)
                 #print("cluster extended")
-        if len(current) > 12 and len(current) < 1000:
+        if len(current) > 24 and len(current) < 1000:
             clusterBounds.append(current)
             #print("###############################cluster appended")
-
+    
     Cluster.clusters = []
     for c in clusterBounds:
-        Cluster.clusters.append(Cluster(segmented, c, stack_slice))
+            Cluster.clusters.append(Cluster(binary, c, stack_slice))
     print("$$$$$$$$$$$$$$", len(clusterBounds))
     return Cluster.clusters
 
@@ -210,8 +218,8 @@ def makeCells(inFile, clusters=Cluster.clusters):
             c.pruneCusps()
             #c.propagateInternalBoundaries()
             c.showCusps()  #WONT WORK with boolean binary
-            c.splitByEdges()
-            #c.transformToCell()
+            #c.splitByEdges()
+            c.transformToCell()
     for c in noise_clusters:
         c.kill()
     if Cluster.clusters:
@@ -296,7 +304,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
             #boundary = findBoundaryPoints(bin_array)
             Cluster.pic = pic_array
             #clusters, boundary = makeClusters(bin_array, inFile, stack_slice)
-            clusters = makeClusters(segmented, stack_slice)
+            clusters = makeClusters(segmented, bin_array, stack_slice)
             superimposeBoundary(inFile, pic_array)
             saveClusters(inFile, clusters)
         finally:
@@ -313,8 +321,8 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
         
         Cluster.pic = pic_array
         #clusters, boundary = makeClusters(bin_array, inFile, stack_slice)
-        clusters = makeClusters(segmented, stack_slice)
-        superimposeBoundary(inFile, pic_array, boundary)
+        clusters = makeClusters(segmented, bin_array, stack_slice)
+        superimposeBoundary(inFile, pic_array)
         saveClusters(inFile, clusters)  
         makeCells(inFile, clusters) 
         saveCells(inFile, stack_slice)
@@ -393,7 +401,7 @@ def parallel(prefix, binarized, clustered, split, overlaid):
 
             pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split, overlay))
 
-            #stack_slice.pruneCells(0.65)
+            stack_slice.pruneCells(0.65)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
             current_stack.addSlice(stack_slice)
 
@@ -426,7 +434,8 @@ def overlay(current_stack, prefix, pic_arrays):
 
     colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
-    cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]; green = [colorLimit, colorLimit, 0]
+    cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]; yellow = [colorLimit, colorLimit, 0]
+    green = [0, 0, colorLimit]; white_ = [colorLimit, colorLimit, colorLimit]
 
     for c in current_stack.largest_Cells:
         x+=1
@@ -445,11 +454,23 @@ def overlay(current_stack, prefix, pic_arrays):
         #print(ss.finalizedCellSlice.cells)
         for c in ss.cells:
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = magenta
+                largest_3d[-1][b[0]][b[1]] = [0,0,0]
 
-        for c in ss.rejected_Cells: #this is a subset of cells (above) so order matters!
+        for c in ss.roundness_rejected_Cells: #this is a subset of cells (above) so order matters!
+            for b in c.boundary:
+                largest_3d[-1][b[0]][b[1]] = yellow
+
+        for c in ss.split_Cells: 
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = green
+
+        for c in ss.contained_Cells: 
+            for b in c.boundary:
+                largest_3d[-1][b[0]][b[1]] = magenta
+
+        for c in ss.overlapping_Cells: 
+            for b in c.boundary:
+                largest_3d[-1][b[0]][b[1]] = white_
 
         for c in ss.finalizedCellSlice.cells:
             outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
