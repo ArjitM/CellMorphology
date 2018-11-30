@@ -7,6 +7,7 @@ class Stack_slice:
         self.cells = cells
         self.number = number
         self.finalizedCellSlice = Stack_slice_largest(number, [])
+        self.rejected_Cells = []
 
     def addCell(self, cell):
         if isinstance(cell, Cell):
@@ -86,11 +87,11 @@ class Stack:
                             self.large_Cells.remove(lr)
 
         for lg in self.large_Cells:
-            if not lg.internalEdges and lg.roundness > 0.4:
+            if not lg.internalEdges and lg.roundness > 0.6:
                 lg.stack_slice.finalizedCellSlice.addCell(lg)
                 self.largest_Cells.append(lg)
             else:
-                self.rejected_Cells.append(lg)
+                lg.stack_slice.rejected_Cells.append(lg)
 
 
 

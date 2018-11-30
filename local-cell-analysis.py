@@ -20,16 +20,15 @@ import matlab.engine
 from operator import add
 import scipy.ndimage
 
-def makeClusters(segmented, boundary, stack_slice):
+def makeClusters(segmented, stack_slice):
     
     Cluster.clusters = []
-    if len(boundary) == 0:
-        print("NO BOUNDARY")
-        return []
-    boundary.sort() #should be sorted but double-checking; sort by i then j
+    boundaries = findSegmentedBoundary(segmented)
     clusterBounds = []
-    while boundary:
+    
+    for object_num in range(len(boundaries)):
         #clusterBounds.append([boundary[0]])
+        boundary = boundaries[object_num]
         current = [boundary[0]]
         pivot = boundary.pop(0)
         #current = clusterBounds[-1] #last cluster element
@@ -421,14 +420,14 @@ def overlay(current_stack, prefix, pic_arrays):
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
     cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]; green = [colorLimit, colorLimit, 0]
 
-    outFile.write("LARGEST CELLS ARE \n")
-    for c in current_stack.large_Cells:
+    for c in current_stack.largest_Cells:
         x+=1
         color_index = c.stack_slice.number % len(colored)
         for b in c.boundary:
             out_rgb[b[0]][b[1]] = colored[color_index]
     skimage.external.tifffile.imsave(prefix + 'largest.tif', out_rgb)
     
+    outFile.write("LARGEST CELLS ARE \n")
     largest_3d = []
     for ss, pic_array in zip(current_stack.stack_slices, pic_arrays):
         largest_3d.append(skimage.color.gray2rgb(pic_array))
@@ -439,6 +438,10 @@ def overlay(current_stack, prefix, pic_arrays):
         for c in ss.cells:
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = magenta
+
+        for c in ss.rejected_Cells: #this is a subset of cells (above) so order matters!
+            for b in c.boundary:
+                largest_3d[-1][b[0]][b[1]] = green
 
         for c in ss.finalizedCellSlice.cells:
             outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
