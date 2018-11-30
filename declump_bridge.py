@@ -44,7 +44,7 @@ class IdentifyPrimaryObjectsBridge(IdentifyPrimaryObjects):
 		self.threshold = threshold.Threshold()
 		super(IdentifyPrimaryObjects, self).__init__()
 		self.use_advanced.value = True
-		self.__dict__['unclump_method'] = UN_INTENSITY
+		self.__dict__['unclump_method'] = UN_SHAPE #INTENSITY
 
 inFile, binFile, labeledFile = sys.argv[1], sys.argv[2], sys.argv[3]
 
@@ -61,7 +61,7 @@ primaryObjects = IdentifyPrimaryObjectsBridge()
 inputImage = Image(image=pic_array, mask=bin_array)
 #watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, labeled_array, len(labeled_array))
 
-primaryObjects.__dict__['unclump_method'] = UN_SHAPE
+#primaryObjects.__dict__['unclump_method'] = UN_SHAPE
 #$watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, watershed_boundaries, len(watershed_boundaries))
 watershed_boundaries, object_count, max_suppression = primaryObjects.separate_neighboring_objects(inputImage, labeled_array, len(labeled_array))
 

@@ -206,8 +206,8 @@ def makeCells(inFile, clusters=Cluster.clusters):
             c.pruneCusps()
             #c.propagateInternalBoundaries()
             c.showCusps()  #WONT WORK with boolean binary
-            #c.splitByEdges()
-            c.transformToCell()
+            c.splitByEdges()
+            #c.transformToCell()
     for c in noise_clusters:
         c.kill()
     if Cluster.clusters:
@@ -363,7 +363,7 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
-    x = 5
+    x = 2
     if split:
         binarized, clustered = True, True
     elif clustered:
@@ -396,7 +396,7 @@ def parallel(prefix, binarized, clustered, split, overlaid):
         else:
             print(prefix)
             x += 1
-            if x > 6: 
+            if x > 4: 
                 break
 
     current_stack.collate_slices()

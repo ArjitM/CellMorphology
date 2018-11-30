@@ -33,6 +33,8 @@ class Stack:
     def __init__(self, stack_slices=[]):
         self.stack_slices = stack_slices
         self.large_Cells = []
+        self.largest_Cells = []
+        self.rejected_Cells = []
 
     def addSlice(self, stack_slice):
         self.stack_slices.append(stack_slice)
@@ -41,6 +43,9 @@ class Stack:
         for stack_slice in self.stack_slices:
 
             for cell in stack_slice.cells:
+
+                if len(cell.boundary) < 20:
+                    continue
                 hits = 0
                 large_replace = []
 
@@ -81,8 +86,11 @@ class Stack:
                             self.large_Cells.remove(lr)
 
         for lg in self.large_Cells:
-            if not lg.internalEdges and lg.roundness > 0.75:
+            if not lg.internalEdges and lg.roundness > 0.4:
                 lg.stack_slice.finalizedCellSlice.addCell(lg)
+                self.largest_Cells.append(lg)
+            else:
+                self.rejected_Cells.append(lg)
 
 
 
