@@ -174,7 +174,7 @@ def makeBinary(inFile, pic_array, pic):
                 for npoint in neighbor_points:
                     if segmented[npoint[0], npoint[1]] != 0 and segmented[npoint[0], npoint[1]] != segmented[i,j]:
                         out_array[i,j] = 0
-    return out_array
+    return out_array, segmented
 
 def loadObjects(inFile):
     with open(inFile.replace('.tif', '_segmented.pkl'), 'rb') as segmentedFile:
@@ -223,17 +223,23 @@ def getBinary(inFile, pic_array, binarized):
         try:
             with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
                 bin_array = pic_bin.asarray()
+            segmented = loadObjects(inFile)
+
         except (FileNotFoundError, EOFError):
             pic = skimage.external.tifffile.TiffFile(inFile)
-            bin_array = makeBinary(inFile, pic_array, pic)
+            bin_array, segmented = makeBinary(inFile, pic_array, pic)
     else:
         pic = skimage.external.tifffile.TiffFile(inFile)
-        bin_array = makeBinary(inFile, pic_array, pic)
+        bin_array, segmented = makeBinary(inFile, pic_array, pic)
     pic.close()
-    return bin_array
+    return bin_array, segmented
 
 
-def superimposeBoundary(inFile, pic_array, boundary):
+def superimposeBoundary(inFile, pic_array, boundary=None):
+    if boundary is None:
+        boundary = []
+        for c in Cluster.clusters:
+            boundary.extend(c.boundary)
     bound = copy.deepcopy(pic_array)
     for b in boundary:
         bound[b[0]][b[1]] = 0
@@ -286,11 +292,12 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
         try:
             clusters = loadClusters(inFile, stack_slice)
         except (FileNotFoundError, EOFError):
-            bin_array = getBinary(inFile, pic_array, binarized=True)
+            bin_array, segmented = getBinary(inFile, pic_array, binarized=True)
             #boundary = findBoundaryPoints(bin_array)
             Cluster.pic = pic_array
-            clusters, boundary = makeClusters(bin_array, inFile, stack_slice)
-            superimposeBoundary(inFile, pic_array, boundary)
+            #clusters, boundary = makeClusters(bin_array, inFile, stack_slice)
+            clusters = makeClusters(segmented, stack_slice)
+            superimposeBoundary(inFile, pic_array)
             saveClusters(inFile, clusters)
         finally:
             makeCells(inFile, clusters)
@@ -305,7 +312,8 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
         #print("#############", len(boundary))
         
         Cluster.pic = pic_array
-        clusters, boundary = makeClusters(bin_array, inFile, stack_slice)
+        #clusters, boundary = makeClusters(bin_array, inFile, stack_slice)
+        clusters = makeClusters(segmented, stack_slice)
         superimposeBoundary(inFile, pic_array, boundary)
         saveClusters(inFile, clusters)  
         makeCells(inFile, clusters) 
