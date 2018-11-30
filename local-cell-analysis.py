@@ -305,7 +305,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
             return pic_array
 
     else:
-        bin_array = getBinary(inFile, pic_array, binarized)
+        bin_array, segmented = getBinary(inFile, pic_array, binarized)
         #print(bin_array)
         #print("#######hhhhhhhhhh", len(bin_array))
         #boundary = findBoundaryPoints(bin_array)
