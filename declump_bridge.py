@@ -44,7 +44,7 @@ class IdentifyPrimaryObjectsBridge(IdentifyPrimaryObjects):
 		self.threshold = threshold.Threshold()
 		super(IdentifyPrimaryObjects, self).__init__()
 		self.use_advanced.value = True
-		self.__dict__['unclump_method'] = UN_SHAPE #INTENSITY
+		self.__dict__['unclump_method'] = UN_SHAPE
 
 inFile, binFile, labeledFile = sys.argv[1], sys.argv[2], sys.argv[3]
 

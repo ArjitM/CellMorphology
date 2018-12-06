@@ -25,14 +25,13 @@ def makeClusters(segmented, binary, stack_slice):
     Cluster.clusters = []
     boundaries = findSegmentedBoundary(segmented)
     clusterBounds = []
-    print(boundaries)
+    #print(boundaries)
     
     for object_num in range(1, len(boundaries) + 1): #object numbering begins at 1
-        #clusterBounds.append(boundaries[object_num]) #<<-- simple way to get all boundary points but not account for order/loops/contained cells
-
+        clusterBounds.append(boundaries[object_num]) #<<-- simple way to get all boundary points but not account for order/loops/contained cells
+        '''
         boundary = boundaries[object_num]
-        clusterBounds.append([boundary[0]])
-        
+
         current = [boundary[0]]
         pivot = boundary.pop(0)
         #current = clusterBounds[-1] #last cluster element
@@ -78,13 +77,12 @@ def makeClusters(segmented, binary, stack_slice):
                             k -= 1
 
                         if not ex_line: #not internal loop nor extended line
-                            print("cluster boundary incomplete")
                             current.pop()
                 else:
                     if len(boundary) < len(current):
                         break #cluster is contiguous; exits outer while loop
                     else:
-                        current = boundary.pop(0) #likely detected object within larger object therefore kill
+                        current = [boundary.pop(0)] #likely detected object within larger object therefore kill
 
             else:
                 current.append(neighbor)
@@ -93,6 +91,7 @@ def makeClusters(segmented, binary, stack_slice):
         if len(current) > 24 and len(current) < 1000:
             clusterBounds.append(current)
             #print("###############################cluster appended")
+        '''
     
     Cluster.clusters = []
     for c in clusterBounds:
@@ -300,33 +299,27 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
         try:
             clusters = loadClusters(inFile, stack_slice)
         except (FileNotFoundError, EOFError):
-            bin_array, segmented = getBinary(inFile, pic_array, binarized=True)
-            #boundary = findBoundaryPoints(bin_array)
-            Cluster.pic = pic_array
-            #clusters, boundary = makeClusters(bin_array, inFile, stack_slice)
-            clusters = makeClusters(segmented, bin_array, stack_slice)
-            superimposeBoundary(inFile, pic_array)
-            saveClusters(inFile, clusters)
-        finally:
+            binarized = True
+            #return complete_protocol()
+        else:
             makeCells(inFile, clusters)
             saveCells(inFile, stack_slice)
             return pic_array
 
     else:
-        bin_array, segmented = getBinary(inFile, pic_array, binarized)
-        #print(bin_array)
-        #print("#######hhhhhhhhhh", len(bin_array))
-        #boundary = findBoundaryPoints(bin_array)
-        #print("#############", len(boundary))
-        
-        Cluster.pic = pic_array
-        #clusters, boundary = makeClusters(bin_array, inFile, stack_slice)
-        clusters = makeClusters(segmented, bin_array, stack_slice)
-        superimposeBoundary(inFile, pic_array)
-        saveClusters(inFile, clusters)  
-        makeCells(inFile, clusters) 
-        saveCells(inFile, stack_slice)
-        return pic_array
+        pass
+
+    bin_array, segmented = getBinary(inFile, pic_array, binarized)
+    
+    Cluster.pic = pic_array
+    Cluster.segmented = segmented
+    clusters, boundary = makeClusters_Matlab(bin_array, inFile, stack_slice)
+    #clusters = makeClusters(segmented, bin_array, stack_slice)
+    superimposeBoundary(inFile, pic_array, boundary=boundary)
+    saveClusters(inFile, clusters)  
+    makeCells(inFile, clusters) 
+    saveCells(inFile, stack_slice)
+    return pic_array
 
    # test = internalBorderTest(pic_array, out_array, boundary)
     #visualize_Clusters(clusters, out_array, inFile)
@@ -401,7 +394,7 @@ def parallel(prefix, binarized, clustered, split, overlaid):
 
             pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split, overlay))
 
-            stack_slice.pruneCells(0.65)
+            #stack_slice.pruneCells(0.65)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
             current_stack.addSlice(stack_slice)
 
@@ -468,9 +461,9 @@ def overlay(current_stack, prefix, pic_arrays):
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = magenta
 
-        for c in ss.overlapping_Cells: 
-            for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = white_
+        # for c in ss.overlapping_Cells: 
+        #     for b in c.boundary:
+        #         largest_3d[-1][b[0]][b[1]] = white_
 
         for c in ss.finalizedCellSlice.cells:
             outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))

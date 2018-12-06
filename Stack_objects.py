@@ -77,14 +77,14 @@ class Stack:
                             new_cell = False
                             cell.stack_slice.contained_Cells.append(cell)
                             break
-                        if overlapping: #overlapping
+                        elif overlapping: #overlapping
                             if large_Cell.area > cell.area:
                                 new_cell = False
                                 cell.stack_slice.overlapping_Cells.append(cell)
                                 break
                             else:
                                 large_replace.append(large_Cell)
-                                large_replace.stack_slice.overlapping_Cells.append(large_Cell)
+                                large_Cell.stack_slice.overlapping_Cells.append(large_Cell)
 
                     if new_cell:
                         self.large_Cells.append(cell)

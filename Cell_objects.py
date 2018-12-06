@@ -36,7 +36,7 @@ class Cluster:
 
     clusters = []
 
-    def __init__(self, binary, boundary, stack_slice, internalEdges=[]):
+    def __init__(self, binary, boundary, stack_slice, internalEdges=None):
 
         self.boundary = boundary #DO NOT SORT THIS! Order is important
         #self.boundary2D = self.getBoundary2D()
@@ -47,6 +47,8 @@ class Cluster:
         self.constriction_points = []
         self.internalEdges = internalEdges
         self.stack_slice = stack_slice
+        self.object_number = None
+        self.internalEdges = [] if (internalEdges is None) else internalEdges #using [] as default argument is problematic; old is appended to default
 
         if not isinstance(self, Cell):
             Cluster.clusters.append(self)
@@ -350,6 +352,12 @@ class Cluster:
                 #if isinstance(self, Cell):
                 #    Cell.kill(self) 
 
+    @property
+    def centroids(self):
+        self.object_number = Cluster.segmented[self.boundary[0][0], self.boundary[0][1]] #initialize object number from segmented array
+        pass
+
+
 
     def kill(self):
         Cluster.clusters.remove(self)
@@ -427,7 +435,8 @@ class Cell(Cluster):
                     if area and self.binary[var_bounds[k][0]][btwn] == 1:
                         self.addInternalBoundaryHit()
                 else:
-                    if self.binary[btwn][var_bounds[k][1]] == 0:
+                    #if self.binary[btwn][var_bounds[k][1]] == 0: #incorrectly accounts for contained cells
+                    if Cluster.segmented[btwn][var_bounds[k][1]] == 0:
                         interrupted = True
                         break
             if not interrupted:
