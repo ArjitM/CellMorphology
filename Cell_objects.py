@@ -429,14 +429,17 @@ class Cell(Cluster):
             for btwn in range(var_bounds[k][index], var_bounds[k+1][index]):
                 #toggle = int(not(bool(index))) #toggle btwn 0 and 1
                 if index == 1:
-                    if self.binary[var_bounds[k][0]][btwn] == 0:
+                    #if self.binary[var_bounds[k][0]][btwn] == 0:
+                    if Cluster.segmented[var_bounds[k][0]][btwn] == 0:
+                        #self.binary[var_bounds[k][0]][btwn]=WHITE//2
                         interrupted = True
                         break
-                    if area and self.binary[var_bounds[k][0]][btwn] == 1:
+                    if area and self.binary[var_bounds[k][0]][btwn] == 0:
                         self.addInternalBoundaryHit()
                 else:
                     #if self.binary[btwn][var_bounds[k][1]] == 0: #incorrectly accounts for contained cells
                     if Cluster.segmented[btwn][var_bounds[k][1]] == 0:
+                        #self.binary[btwn][var_bounds[k][1]]=WHITE//2
                         interrupted = True
                         break
             if not interrupted:
@@ -456,6 +459,7 @@ class Cell(Cluster):
     def area(self):
         self.interior = []
         bounds = self.getBoundary2D() #returns row-wise 2d matrix
+        #  print("*****Bounds***** ", bounds)
         area = 0
         for b in bounds: #boundary points in each row
             x_pairs = self.get_var_pairs(b, 1, True)
@@ -465,7 +469,9 @@ class Cell(Cluster):
                 for xp in x_pairs:
                     area += (xp[1][1] - xp[0][1] + 1)
                     self.interior.extend([(xp[0][0], k) for k in range(xp[0][1], xp[1][1]+1)])
+        #skimage.external.tifffile.imsave('../Cell Size Project/RD1/expt_1/piece1-gfp-normal/piece-0002.tif'.replace('.tif', '_WHERE.tif'), self.binary)
         return area
+
 
 
     @property

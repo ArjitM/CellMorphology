@@ -106,6 +106,25 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     img = eng.imread(inFile.replace('.tif', '_Binary.tif'))
     #print(img)
     boundaries = eng.bwboundaries(img)
+
+
+    '''
+        for k = 1:N 
+            % Boundary k is the parent of a hole if the k-th column 
+            % of the adjacency matrix A contains a non-zero element 
+            if (nnz(A(:,k)) > 0) 
+                boundary = B{k}; 
+                plot(boundary(:,2),... 
+                    boundary(:,1),'r','LineWidth',2); 
+                % Loop through the children of boundary k 
+                for l = find(A(:,k))' 
+                    boundary = B{l}; 
+                    plot(boundary(:,2),... 
+                        boundary(:,1),'g','LineWidth',2); 
+                end 
+            end 
+        end
+    '''
     eng.quit()
     clusterBounds = []
     for bound in boundaries:
@@ -179,8 +198,11 @@ def makeBinary(inFile, pic_array, pic):
             if segmented[i,j] != 0:
                 neighbor_points = getNeighborIndices(segmented, i, j)
                 for npoint in neighbor_points:
+                    #print(npoint)
                     if segmented[npoint[0], npoint[1]] != 0 and segmented[npoint[0], npoint[1]] != segmented[i,j]:
                         out_array[i,j] = 0
+                        break
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivots.tif'), out_array)
     return out_array, segmented
 
 def loadObjects(inFile):
@@ -317,15 +339,15 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     #clusters = makeClusters(segmented, bin_array, stack_slice)
     superimposeBoundary(inFile, pic_array, boundary=boundary)
     saveClusters(inFile, clusters)  
-    makeCells(inFile, clusters) 
+    makeCells(inFile, clusters) #saves edged picture
     saveCells(inFile, stack_slice)
     return pic_array
 
    # test = internalBorderTest(pic_array, out_array, boundary)
     #visualize_Clusters(clusters, out_array, inFile)
 
-    skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
-    return pic_array
+    # skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
+    # return pic_array
 
 
 def visualize_Clusters(clusters, out_array, inFile):
