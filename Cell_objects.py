@@ -44,12 +44,13 @@ class Cluster:
         self.cells = []
         self.cusps = []
         self.center = (np.mean([p[0] for p in self.boundary]), np.mean([p[1] for p in self.boundary]))
-        self.pivots = pivots
+        self.pivots = prunePivots(pivots, binary)
         self.constriction_points = []
         self.internalEdges = internalEdges
         self.stack_slice = stack_slice
         self.object_number = None
         self.internalEdges = [] if (internalEdges is None) else internalEdges #using [] as default argument is problematic; old is appended to default
+        self.object_number = Cluster.segmented[self.boundary[0][0], self.boundary[0][1]] #initialize object number from segmented array
 
         if not isinstance(self, Cell):
             Cluster.clusters.append(self)
@@ -134,6 +135,22 @@ class Cluster:
             for n in getNeighborIndices(self.binary, c.point[0], c.point[1]):
                 self.binary[n[0]][n[1]] = 0
 
+    @staticmethod
+    def prunePivots(pivots, binary):
+        pruned = []
+        for pivot in pivots:
+            if len(pivot) < 12:
+                pruned.append((int(np.mean([p[0] for p in pivot])), int(np.mean([p[1] for p in pivot]))))
+            else:
+                erase(pivot)
+        return pruned
+
+    @staticmethod
+    def erase(pivot, binary):
+        pivot.sort()
+        for row in pivot:
+            for i,j in row:
+                binary[i,j] = WHITE
 
     def splitBentCells(self):
         pass
@@ -350,14 +367,6 @@ class Cluster:
                 cell_1.splitByEdges()
                 cell_2.splitByEdges()
 
-                #if isinstance(self, Cell):
-                #    Cell.kill(self) 
-
-    @property
-    def centroids(self):
-        self.object_number = Cluster.segmented[self.boundary[0][0], self.boundary[0][1]] #initialize object number from segmented array
-        pass
-
 
 
     def kill(self):
@@ -460,7 +469,6 @@ class Cell(Cluster):
     def area(self):
         self.interior = []
         bounds = self.getBoundary2D() #returns row-wise 2d matrix
-        #  print("*****Bounds***** ", bounds)
         area = 0
         for b in bounds: #boundary points in each row
             x_pairs = self.get_var_pairs(b, 1, True)
@@ -470,7 +478,6 @@ class Cell(Cluster):
                 for xp in x_pairs:
                     area += (xp[1][1] - xp[0][1] + 1)
                     self.interior.extend([(xp[0][0], k) for k in range(xp[0][1], xp[1][1]+1)])
-        #skimage.external.tifffile.imsave('../Cell Size Project/RD1/expt_1/piece1-gfp-normal/piece-0002.tif'.replace('.tif', '_WHERE.tif'), self.binary)
         return area
 
 
@@ -479,18 +486,13 @@ class Cell(Cluster):
     def roundness(self):
         circum = len(self.boundary)
         ideal = circum / (2 * math.pi)
-        # k = circum // 8
-        # opposing = [[0,4], [1,5], [2,6], [3,7]]
-        # diameters = []
 
         def distance(p1, p2):
             d = math.sqrt( (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
             return d
 
         normalized_distances = list(np.sqrt([ ((distance(b, self.center) - ideal)/ideal)**2 for b in self.boundary]))
-
         return 1 - np.mean(normalized_distances)
-        #return self.roundness
 
 
     def kill(self):
