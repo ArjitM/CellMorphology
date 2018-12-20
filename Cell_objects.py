@@ -44,7 +44,7 @@ class Cluster:
         self.cells = []
         self.cusps = []
         self.center = (np.mean([p[0] for p in self.boundary]), np.mean([p[1] for p in self.boundary]))
-        self.pivots = prunePivots(pivots, binary)
+        self.pivots = createPivots(pivots, binary)
         self.constriction_points = []
         self.internalEdges = internalEdges
         self.stack_slice = stack_slice
@@ -136,7 +136,7 @@ class Cluster:
                 self.binary[n[0]][n[1]] = 0
 
     @staticmethod
-    def prunePivots(pivots, binary):
+    def createPivots(pivots, binary):
         pruned = []
         for pivot in pivots:
             if len(pivot) < 12:
