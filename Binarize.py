@@ -215,6 +215,8 @@ def basicEdge(pic_array, out_array, regions):
     for i in range(len(pic_array) - 1):
         for j in range(len(pic_array[0]) - 1):
 
+            if out_array[i,j] == WHITE:
+                continue
             left, right = float(pic_array[i][j]), float(pic_array[i][j+1])
             bottom, diagonal = float(pic_array[i+1][j]), float(pic_array[i+1][j+1])
 
@@ -231,7 +233,7 @@ def basicEdge(pic_array, out_array, regions):
             elif left ==  WHITE:
                 out_array[i][j] = 0 #remove saturated pixels
             else:
-                out_array[i][j] = bin_WHITE #WHITE //using boolean representation to save memory
+                out_array[i][j] = WHITE #bin_WHITE //using boolean representation to save memory
     return out_array
 
 
@@ -305,3 +307,26 @@ def internalBorderTest(pic_array, out_array, boundary):
             if pic_array[i][j] > borderMean - tolerance and (i, j) not in boundaryIndices:
                 internalBorder[i][j] = 0
     return internalBorder
+
+def growCellBoundaries(pic_array, out_array):
+    #Use only with Soma stain, NOT nucleus; assumes dark foreground
+    bg_vals = []
+    for i in range(len(pic_array)):
+        for j in range(len(pic_array[0])):
+            if out_array[i,j] == 0:
+                bg_vals.append(pic_array[i,j])
+    bg_vals.sort()
+    bg_cutOff = bg_vals[int(0.6 * len(bg_vals))] #top 40% pixel values in bg
+    fg_cutOff = bg_vals[0]
+    for i in range(len(pic_array)):
+        for j in range(len(pic_array[0])):
+            if out_array[i,j] == 0 and pic_array[i,j] > bg_cutOff:
+                out_array[i,j] = 0
+            elif out_array[i,j] == WHITE and pic_array[i,j] >= fg_cutOff:
+                out_array[i,j] = 0
+            else:
+                out_array[i,j] = pic_array[i,j]
+
+    return out_array
+
+

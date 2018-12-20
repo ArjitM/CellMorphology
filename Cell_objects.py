@@ -36,14 +36,15 @@ class Cluster:
 
     clusters = []
 
-    def __init__(self, binary, boundary, stack_slice, internalEdges=None):
+    def __init__(self, binary, boundary, stack_slice, pivots, internalEdges=None):
 
         self.boundary = boundary #DO NOT SORT THIS! Order is important
         #self.boundary2D = self.getBoundary2D()
         self.binary = binary
         self.cells = []
         self.cusps = []
-        self.pivot = (np.mean([p[0] for p in self.boundary]), np.mean([p[1] for p in self.boundary]))
+        self.center = (np.mean([p[0] for p in self.boundary]), np.mean([p[1] for p in self.boundary]))
+        self.pivots = pivots
         self.constriction_points = []
         self.internalEdges = internalEdges
         self.stack_slice = stack_slice
@@ -453,7 +454,7 @@ class Cell(Cluster):
         for other_p in other_cell.boundary:
             if self.pointWithin(other_p):
                 hits += 1        
-        return hits >= k // 3 and self.pointWithin(other_cell.pivot), hits >= k // 6
+        return hits >= k // 3 and self.pointWithin(other_cell.center), hits >= k // 6
 
     @property
     def area(self):
@@ -486,7 +487,7 @@ class Cell(Cluster):
             d = math.sqrt( (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
             return d
 
-        normalized_distances = list(np.sqrt([ ((distance(b, self.pivot) - ideal)/ideal)**2 for b in self.boundary]))
+        normalized_distances = list(np.sqrt([ ((distance(b, self.center) - ideal)/ideal)**2 for b in self.boundary]))
 
         return 1 - np.mean(normalized_distances)
         #return self.roundness

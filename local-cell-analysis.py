@@ -103,36 +103,30 @@ def makeClusters(segmented, binary, stack_slice):
 def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = []
     eng = matlab.engine.start_matlab()
-    img = eng.imread(inFile.replace('.tif', '_Binary.tif'))
-    #print(img)
-    boundaries = eng.bwboundaries(img)
+    img = eng.imread(inFile.replace('.tif', '_BinaryPivots.tif'))
+    #boundaries = eng.bwboundaries(img)
+    allBounds = eng.moore_neighbor(img)
+    #print(allBounds)
 
-
-    '''
-        for k = 1:N 
-            % Boundary k is the parent of a hole if the k-th column 
-            % of the adjacency matrix A contains a non-zero element 
-            if (nnz(A(:,k)) > 0) 
-                boundary = B{k}; 
-                plot(boundary(:,2),... 
-                    boundary(:,1),'r','LineWidth',2); 
-                % Loop through the children of boundary k 
-                for l = find(A(:,k))' 
-                    boundary = B{l}; 
-                    plot(boundary(:,2),... 
-                        boundary(:,1),'g','LineWidth',2); 
-                end 
-            end 
-        end
-    '''
-    eng.quit()
     clusterBounds = []
-    for bound in boundaries:
-        clusterBounds.append([tuple( map( add, (np.array(bp).astype(np.uint16)), (-1, -1) ) ) for bp in bound]) #convert from matlab double
-        #matlab array indexing starts at 1!
+    pivots = []
+    for boundaries in allBounds:
+        k = 0
+        for bound in boundaries:
+            if k==0:
+                clusterBounds.append([tuple( map( add, (np.array(bp).astype(np.uint16)), (-1, -1) ) ) for bp in bound]) #convert from matlab double
+                #matlab array indexing starts at 1!
+                pivots.append([])
+            else:
+                pivots[-1].append([tuple( map( add, (np.array(bp).astype(np.uint16)), (-1, -1) ) ) for bp in bound])
+            k+=1
+
+    eng.quit()
+    
+
     boundary = [item for sublist in clusterBounds for item in sublist]
-    for c in clusterBounds:
-        Cluster.clusters.append(Cluster(binary, c, stack_slice))
+    for c, p in zip(clusterBounds, pivots):
+        Cluster.clusters.append(Cluster(binary, c, stack_slice, p))
     return Cluster.clusters, boundary
 
 def makeBinary(inFile, pic_array, pic):
@@ -162,11 +156,17 @@ def makeBinary(inFile, pic_array, pic):
     out_array = pic_array > threshold_local(pic_array, block_size=35).astype(pic_array.dtype.type) 
     out_array = out_array.astype(pic_array.dtype.type)
     out_array = np.array([ [WHITE if p else 0 for p in row] for row in out_array], dtype = pic_array.dtype.type)
+
+    if not nucleusMode:
+        out_array = skimage.util.invert(out_array) #inversion required for soma stain
+        out_array = growCellBoundaries(pic_array, out_array)
+        out_array = pic_array < threshold_local(pic_array, block_size=35).astype(pic_array.dtype.type) 
+        out_array = out_array.astype(pic_array.dtype.type)
+        out_array = np.array([ [WHITE if p else 0 for p in row] for row in out_array], dtype = pic_array.dtype.type)
+
     #print(out_array)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
-    if not nucleusMode:
-        out_array = skimage.util.invert(out_array) #inversion required for soma stain
 
     regions.setNoiseCompartments(out_array, 0.95)
 
