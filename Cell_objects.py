@@ -32,6 +32,23 @@ class Edge:
         self.internalEdge = edge
 
 
+def erase(pivot, binary):
+    pivot.sort()
+    pivot2D = [ list(filter(lambda p: p[0] == y, pivot)) for y in range(pivot[0][0], pivot[-1][0] + 1)]
+    for row in pivot2D:
+        for i,j in row:
+            binary[i,j] = WHITE
+
+
+def createPivots(pivots, binary):
+    pruned = []
+    for pivot in pivots:
+        if len(pivot) < 12:
+            pruned.append((int(np.mean([p[0] for p in pivot])), int(np.mean([p[1] for p in pivot]))))
+        else:
+            erase(pivot, binary)
+    return pruned
+
 class Cluster:
 
     clusters = []
@@ -135,23 +152,6 @@ class Cluster:
             for n in getNeighborIndices(self.binary, c.point[0], c.point[1]):
                 self.binary[n[0]][n[1]] = 0
 
-    @staticmethod
-    def createPivots(pivots, binary):
-        pruned = []
-        for pivot in pivots:
-            if len(pivot) < 12:
-                pruned.append((int(np.mean([p[0] for p in pivot])), int(np.mean([p[1] for p in pivot]))))
-            else:
-                erase(pivot)
-        return pruned
-
-    @staticmethod
-    def erase(pivot, binary):
-        pivot.sort()
-        for row in pivot:
-            for i,j in row:
-                binary[i,j] = WHITE
-
     def splitBentCells(self):
         pass
 
@@ -177,7 +177,7 @@ class Cluster:
         self.constriction_points = []
         
         #cleave_points = [ min(arc, key=lambda c: c.angle) for arc in self.arcs]
-        # these are the points where internal boundaries start/stop. Find by looking for cusp region points with the least (most constricted) angle
+        ## these are the points where internal boundaries start/stop. Find by looking for cusp region points with the least (most constricted) angle
         cleave_points = [arc[len(arc) // 2] for arc in self.arcs]
 
 
@@ -326,7 +326,7 @@ class Cluster:
             edge.append(pair.point)
 
             for p in edge:
-                self.binary[p[0]][p[1]] = 1 #making this 0 intereferes with area
+                self.binary[p[0]][p[1]] = 0 
 
             #print("New edge done")
 
@@ -380,14 +380,11 @@ class Cell(Cluster):
         #self.roundness = 0
         if not self.internalEdges:
             self.internalBoundaryHits = 0 #if cell is in "controversial" lots of boundaries region, it is killed
-            _ = self.area #invoke property to update interior
             self.interior = [] #this is updated by the area function
+            _ = self.area #invoke property to update interior
             #self.center = scipy.ndimage.measurements.center_of_mass(self.interior + self.boundary)
-            #self.area = self.area()
             if self.internalBoundaryHits > self.area / 3:
                 self.kill()
-            #else:
-            #    self.roundness = self.getRoundness()
             # self.colored = skimage.color.grey2rgb(self.binary)
 
 
