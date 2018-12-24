@@ -335,6 +335,10 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     Cluster.pic = pic_array
     Cluster.segmented = segmented
     clusters, boundary = makeClusters_Matlab(bin_array, inFile, stack_slice)
+
+    for c in Cluster.clusters:
+        c.growPivots()
+
     #clusters = makeClusters(segmented, bin_array, stack_slice)
     superimposeBoundary(inFile, pic_array, boundary=boundary)
     saveClusters(inFile, clusters)  
