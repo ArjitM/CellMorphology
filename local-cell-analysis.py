@@ -137,13 +137,6 @@ def makeBinary(inFile, pic_array, pic):
     nucleusMode = '-rfp-' in inFile or 'ucleus' in inFile
 
     out_array = [ [0] * len(pic_array[1]) ] * len(pic_array)
-    global WHITE
-    WHITE = skimage.dtype_limits(pic_array, True)[1]
-    #print("Limit: ", WHITE)
-    Binarize.WHITE = WHITE
-    Binarize.bin_WHITE = WHITE
-    Cell_objects.WHITE = WHITE
-
     regions = Compartmentalize(pic_array, 32)
 
     #out_array = copy.deepcopy(pic_array) #
@@ -257,10 +250,16 @@ def getBinary(inFile, pic_array, binarized):
         except (FileNotFoundError, EOFError):
             pic = skimage.external.tifffile.TiffFile(inFile)
             bin_array, segmented = makeBinary(inFile, pic_array, pic)
+            pic.close()
     else:
         pic = skimage.external.tifffile.TiffFile(inFile)
         bin_array, segmented = makeBinary(inFile, pic_array, pic)
-    pic.close()
+        pic.close()
+    global WHITE
+    WHITE = skimage.dtype_limits(bin_array, True)[1]
+    Binarize.WHITE = WHITE
+    Binarize.bin_WHITE = WHITE
+    Cell_objects.WHITE = WHITE
     return bin_array, segmented
 
 

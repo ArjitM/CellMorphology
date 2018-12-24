@@ -165,7 +165,13 @@ class Cluster:
         cell = Cell(stack_slice, binary, cell_boundary, internalEdges)
         return cell
 
-        
+    def growPivots(self):
+        from math import sqrt
+        distances = []
+        for p in self.pivots:
+            for b in self.boundary:
+                distances.append(sqrt( (p[0] - b[0])**2 + (p[1] - b[1])**2) )
+                print("-------: ", distances)
 
     def propagateInternalBoundaries(self):
         #cuspPoints = list(filter(lambda p: p[2], self.boundary))
