@@ -8,6 +8,7 @@ from skimage import filters
 from skimage import color
 from Binarize import *
 import scipy.ndimage
+from scipy.signal import argrelextrema
 
 global WHITE
 WHITE = None
@@ -30,7 +31,6 @@ class Edge:
         self.start = edge.pop(0)
         self.end = edge.pop()
         self.internalEdge = edge
-
 
 def erase(pivot, binary):
     pivot.sort()
@@ -167,11 +167,20 @@ class Cluster:
 
     def growPivots(self):
         from math import sqrt
-        distances = []
+        distance_sequences = []
+        minima_sequences = []
         for p in self.pivots:
+            distances = []
             for b in self.boundary:
                 distances.append(sqrt( (p[0] - b[0])**2 + (p[1] - b[1])**2) )
-                print("-------: ", distances)
+            print("-------: ", distances)
+            distance_sequences.append(distances)
+            minima = argrelextrema(distances, np.less, mode='wrap')
+            #Ensure at least 100 pixel separation between minima
+            ##Identified minima should be in the vicinity of cusps idenrtified by gradient
+            ###Merge pivots in close vicinity ??
+
+
 
     def propagateInternalBoundaries(self):
         #cuspPoints = list(filter(lambda p: p[2], self.boundary))

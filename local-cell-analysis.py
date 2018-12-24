@@ -125,6 +125,7 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     
 
     boundary = [item for sublist in clusterBounds for item in sublist]
+    Cluster.clusters = [] #VERY IMPORTANT TO RESET
     for c, p in zip(clusterBounds, pivots):
         Cluster.clusters.append(Cluster(binary, c, stack_slice, p))
     return Cluster.clusters, boundary
@@ -335,13 +336,14 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     Cluster.pic = pic_array
     Cluster.segmented = segmented
     clusters, boundary = makeClusters_Matlab(bin_array, inFile, stack_slice)
-
-    for c in Cluster.clusters:
-        c.growPivots()
-
+    #for c in Cluster.clusters:
+    visualize_Clusters(bin_array, inFile, clusters=clusters, num=0)
+    c = Cluster.clusters[0]
+    print("Number of pivots: {0}".format(len(c.pivots)))
+    c.growPivots()
     #clusters = makeClusters(segmented, bin_array, stack_slice)
     superimposeBoundary(inFile, pic_array, boundary=boundary)
-    saveClusters(inFile, clusters)  
+    saveClusters(inFile, clusters)
     makeCells(inFile, clusters) #saves edged picture
     saveCells(inFile, stack_slice)
     return pic_array
@@ -353,27 +355,32 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     # return pic_array
 
 
-def visualize_Clusters(clusters, out_array, inFile):
-    print(len(clusters))
-    for c in clusters:
-        print(c)
-    
-    c_arr = out_array[:]
+def visualize_Clusters(out_array, inFile, clusters=Cluster.clusters, num=None):    
+    c_arr = copy.deepcopy(out_array)
     for i in range(len(c_arr)):
         for j in range(len(c_arr[0])):
             c_arr[i][j] = 0
-            
-    for k in range(len(clusters)):
+    
+    if num is None:        
+        for k in range(len(clusters)):
+            ck = [(c[0], c[1]) for c in clusters[k].boundary]
+            for i in range(len(c_arr)):
+                for j in range(len(c_arr[0])):
+                    if (i,j) in ck:
+                        c_arr[i][j] = WHITE
+                    else:
+                        c_arr[i][j] = 0
+            skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
+    else:
+        k = num
         ck = [(c[0], c[1]) for c in clusters[k].boundary]
-
-        
         for i in range(len(c_arr)):
             for j in range(len(c_arr[0])):
                 if (i,j) in ck:
                     c_arr[i][j] = WHITE
                 else:
                     c_arr[i][j] = 0
-        skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
+        skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr) 
 
 
 locations = [
