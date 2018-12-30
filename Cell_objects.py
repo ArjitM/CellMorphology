@@ -9,6 +9,7 @@ from skimage import color
 from Binarize import *
 import scipy.ndimage
 from scipy.signal import argrelextrema
+from itertools import chain
 
 global WHITE
 WHITE = None
@@ -150,7 +151,7 @@ class Cluster:
                 self.binary[c.point[0]][c.point[1]] = WHITE // 2
         for c in self.constriction_points:
             for n in getNeighborIndices(self.binary, c.point[0], c.point[1]):
-                self.binary[n[0]][n[1]] = 0
+                self.binary[n[0]][n[1]] = WHITE // 2
 
     def splitBentCells(self):
         pass
@@ -173,29 +174,48 @@ class Cluster:
             distances = []
             for b in self.boundary:
                 distances.append(sqrt( (p[0] - b[0])**2 + (p[1] - b[1])**2) )
-            print("-------: ", distances)
+            #print("-------: ", distances)
             distance_sequences.append(distances)
-            minima = argrelextrema(distances, np.less, mode='wrap')
-            #Ensure at least 100 pixel separation between minima
-            ##Identified minima should be in the vicinity of cusps idenrtified by gradient
+            distances = np.array(distances)
+            minima = argrelextrema(distances, np.less, mode='wrap')[0].tolist() #returns indices not actual minima
+            #Ensure at least 40 pixel separation between minima
+            too_keep = []
+            l = len(minima)
+            for i in range(l):
+                if minima[(i+1) % l] - minima[i % l] < 40: #modulus allows wrapping
+                    group = [i % l, (i+1) % l]
+                    k = 2
+                    while minima[(i+k) % l] - minima[i % l] >= 40:
+                        group.append((i+k) % l)
+                        k += 1
+                    best = min(group, key=lambda x: distances[minima[x]])
+                    too_keep.append(best)
+                else:
+                    too_keep.append(minima[i])
+
+            minima_sequences.append(too_keep)
+            for m in too_keep:
+                point = self.boundary[m]
+                for n in getNeighborIndices(self.binary, point[0], point[1]):
+                    self.binary[n[0]][n[1]] = WHITE // 2
+
+            ##Identified minima should be in the vicinity of cusps identified by gradient
             ###Merge pivots in close vicinity ??
+        #return list(chain.from_iterable(minima_sequences))
 
 
 
-    def propagateInternalBoundaries(self):
-        #cuspPoints = list(filter(lambda p: p[2], self.boundary))
-        #cuspPoints = self.cusps
-        
-        if len(self.arcs) <= 1:
-            return None
+    def propagateInternalBoundaries(self, cleave_points=None):
+      
+        # if len(self.arcs) <= 1:
+        #     return None
 
         self.constriction_points = []
         
         #cleave_points = [ min(arc, key=lambda c: c.angle) for arc in self.arcs]
         ## these are the points where internal boundaries start/stop. Find by looking for cusp region points with the least (most constricted) angle
-        cleave_points = [arc[len(arc) // 2] for arc in self.arcs]
-
-
+        if cleave_points is None:
+            cleave_points = [arc[len(arc) // 2] for arc in self.arcs]
         completed_pairs = []
         #boundaries that have already been made, avoid duplication
 
@@ -272,10 +292,6 @@ class Cluster:
                 else:
                     for rem in range(y, pair.point[0], ki):
                         edge.append((rem, x))
-                        #print((rem, x))
-
-                
-
             elif delta_j > delta_i:
 
                 #print('delta j > i')
@@ -288,8 +304,6 @@ class Cluster:
                 else:
                     shift_period = 100
                     shift = False
-
-                #print("vertical shift period", shift_period)
 
                 x, y = cp.point[1], cp.point[0]
                 k = 0

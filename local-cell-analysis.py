@@ -226,14 +226,16 @@ def makeCells(inFile, clusters=Cluster.clusters):
     i = -1
     for c in clusters:
         try:
-            c.getTrueCusps(10)
+            #c.getTrueCusps(10)
+            pass
         except AssertionError:
             noise_clusters.append(c)
         else:
-            c.pruneCusps()
-            #c.propagateInternalBoundaries()
-            c.showCusps()  #WONT WORK with boolean binary
-            #c.splitByEdges()
+            c.growPivots()
+            #c.pruneCusps()
+            # c.propagateInternalBoundaries()
+            # c.showCusps()  #WONT WORK with boolean binary
+            # c.splitByEdges()
             c.transformToCell()
     for c in noise_clusters:
         c.kill()
