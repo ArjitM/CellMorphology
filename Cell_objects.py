@@ -186,7 +186,7 @@ class Cluster:
                 if minima[(i+1) % l] - minima[i % l] < 40: #modulus allows wrapping
                     group = [i % l, (i+1) % l]
                     k = 2
-                    while minima[(i+k) % l] - minima[i % l] >= 40:
+                    while minima[(i+k) % l] - minima[i % l] < 40:
                         group.append((i+k) % l)
                         k += 1
                     best = min(group, key=lambda x: distances[minima[x]])
