@@ -178,10 +178,11 @@ class Cluster:
             distance_sequences.append(distances)
             distances = np.array(distances)
             minima = argrelextrema(distances, np.less, mode='wrap')[0].tolist() #returns indices not actual minima
-            #Ensure at least 40 pixel separation between minima
+            #Ensure at least 40 pixel separation between minima indices
             too_keep = []
             l = len(minima)
-            for i in range(l):
+            i=0
+            while i < l:
                 if minima[(i+1) % l] - minima[i % l] < 40: #modulus allows wrapping
                     group = [i % l, (i+1) % l]
                     k = 2
@@ -190,8 +191,10 @@ class Cluster:
                         k += 1
                     best = min(group, key=lambda x: distances[minima[x]])
                     too_keep.append(best)
+                    i = i+k
                 else:
                     too_keep.append(minima[i])
+                i+=1
 
             minima_sequences.append(too_keep)
             for m in too_keep:

@@ -134,6 +134,12 @@ def makeBinary(inFile, pic_array, pic):
 
     #pic_array = pic.asarray()
     #out_array = pic.asarray(); #copy dimensions
+    global WHITE
+    WHITE = skimage.dtype_limits(pic_array, True)[1]
+    Binarize.WHITE = WHITE
+    Binarize.bin_WHITE = WHITE
+    Cell_objects.WHITE = WHITE
+
     global nucleusMode
     nucleusMode = '-rfp-' in inFile or 'ucleus' in inFile
 
@@ -254,15 +260,16 @@ def getBinary(inFile, pic_array, binarized):
             pic = skimage.external.tifffile.TiffFile(inFile)
             bin_array, segmented = makeBinary(inFile, pic_array, pic)
             pic.close()
+        finally:
+            global WHITE
+            WHITE = skimage.dtype_limits(bin_array, True)[1]
+            Binarize.WHITE = WHITE
+            Binarize.bin_WHITE = WHITE
+            Cell_objects.WHITE = WHITE
     else:
         pic = skimage.external.tifffile.TiffFile(inFile)
         bin_array, segmented = makeBinary(inFile, pic_array, pic)
         pic.close()
-    global WHITE
-    WHITE = skimage.dtype_limits(bin_array, True)[1]
-    Binarize.WHITE = WHITE
-    Binarize.bin_WHITE = WHITE
-    Cell_objects.WHITE = WHITE
     return bin_array, segmented
 
 
