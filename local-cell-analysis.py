@@ -140,9 +140,6 @@ def makeBinary(inFile, pic_array, pic):
     Binarize.bin_WHITE = WHITE
     Cell_objects.WHITE = WHITE
 
-    global nucleusMode
-    nucleusMode = '-rfp-' in inFile or 'ucleus' in inFile
-
     out_array = [ [0] * len(pic_array[1]) ] * len(pic_array)
     regions = Compartmentalize(pic_array, 32)
 
@@ -316,6 +313,9 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
 
     with skimage.external.tifffile.TiffFile(inFile) as pic:
         pic_array = pic.asarray()
+
+    global nucleusMode
+    nucleusMode = '-rfp-' in inFile or 'ucleus' in inFile
 
     if split: #breakpoint to test stack collation
         try:

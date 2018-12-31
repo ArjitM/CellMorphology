@@ -37,8 +37,14 @@ def erase(pivot, binary):
     pivot.sort()
     pivot2D = [ list(filter(lambda p: p[0] == y, pivot)) for y in range(pivot[0][0], pivot[-1][0] + 1)]
     for row in pivot2D:
-        for i,j in row:
-            binary[i,j] = WHITE
+        if len(row) == 1:       
+            for i,j in row: 
+                binary[i,j] = WHITE
+        else:
+            start = row[0]
+            end = row[-1]
+            for k in range(start[1], end[1] + 1):
+                binary[start[0],k] = WHITE
 
 
 def createPivots(pivots, binary):
@@ -183,10 +189,10 @@ class Cluster:
             l = len(minima)
             i=0
             while i < l:
-                if minima[(i+1) % l] - minima[i % l] < 40: #modulus allows wrapping
+                if ((i+1) < l and minima[(i+1)] - minima[i] < 40) or ((i+1) > l and minima[(i+1) % l] + l - minima[i] < 40): #modulus allows wrapping
                     group = [i % l, (i+1) % l]
                     k = 2
-                    while minima[(i+k) % l] - minima[i % l] < 40:
+                    while ((i+k) < l and minima[(i+k)] - minima[i] < 40) or ((i+k) > l and minima[(i+k) % l] + l - minima[i] < 40):
                         group.append((i+k) % l)
                         k += 1
                     best = min(group, key=lambda x: distances[minima[x]])
