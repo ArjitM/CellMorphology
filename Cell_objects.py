@@ -10,6 +10,7 @@ from Binarize import *
 import scipy.ndimage
 from scipy.signal import argrelextrema
 from itertools import chain
+import copy
 
 global WHITE
 WHITE = None
@@ -56,11 +57,18 @@ def createPivots(pivots, binary):
             erase(pivot, binary)
     return pruned
 
+def showPivots(binary, clusters):
+    visualizedPivots = copy.deepcopy(binary)
+    for c in clusters:
+        for p in c.pivots:
+            visualizedPivots[p[0],p[1]] = 0
+    return visualizedPivots
+
 class Cluster:
 
     clusters = []
 
-    def __init__(self, binary, boundary, stack_slice, pivots, internalEdges=None):
+    def __init__(self, binary, boundary, stack_slice, pivots=None, internalEdges=None):
 
         self.boundary = boundary #DO NOT SORT THIS! Order is important
         #self.boundary2D = self.getBoundary2D()
@@ -68,7 +76,7 @@ class Cluster:
         self.cells = []
         self.cusps = []
         self.center = (np.mean([p[0] for p in self.boundary]), np.mean([p[1] for p in self.boundary]))
-        self.pivots = createPivots(pivots, binary)
+        self.pivots = createPivots(pivots, binary) if pivots is not None else None
         self.constriction_points = []
         self.internalEdges = internalEdges
         self.stack_slice = stack_slice
@@ -152,9 +160,9 @@ class Cluster:
 
     def showCusps(self, *args):
         #for c in self.constriction_points:
-        for arc in self.arcs:
-            for c in arc:
-                self.binary[c.point[0]][c.point[1]] = WHITE // 2
+        # for arc in self.arcs:
+        #     for c in arc:
+        #         self.binary[c.point[0]][c.point[1]] = WHITE // 2
         for c in self.constriction_points:
             for n in getNeighborIndices(self.binary, c.point[0], c.point[1]):
                 self.binary[n[0]][n[1]] = WHITE // 2
@@ -203,7 +211,7 @@ class Cluster:
                 i+=1
 
             minima_sequences.append(too_keep)
-            for m in too_keep:
+            for m in minima: #too_keep:
                 point = self.boundary[m]
                 for n in getNeighborIndices(self.binary, point[0], point[1]):
                     self.binary[n[0]][n[1]] = WHITE // 2
@@ -231,8 +239,8 @@ class Cluster:
         for cp in cleave_points:
 
             self.constriction_points.append(cp)
-            orientation = lambda p: np.mean( [math.pi - abs(math.atan(p.left_deriv) - math.atan(cp.left_deriv)), math.pi - abs(math.atan(p.right_deriv) - math.atan(cp.right_deriv))] )
-            viable = filter(lambda p: orientation(p) < math.pi * 0.5, cleave_points)
+            orientation = lambda p: abs(np.mean( [(math.atan(p.left_deriv) - math.atan(cp.left_deriv)), (math.atan(p.right_deriv) - math.atan(cp.right_deriv))] ))
+            viable = filter(lambda p: abs(orientation(p)) > math.pi * 0.5, cleave_points)
             viable_no_duplicate = filter(lambda p: (p, cp) not in completed_pairs and (cp, p) not in completed_pairs, viable)
             try:
                 pair = min(viable_no_duplicate, key = lambda p: (cp.point[0] - p.point[0])**2 + (cp.point[1] - p.point[1])**2 )
@@ -413,7 +421,7 @@ class Cluster:
 class Cell(Cluster):
 
     def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
-        super().__init__(binary, boundary, stack_slice, internalEdges)
+        super().__init__(binary, boundary, stack_slice, internalEdges=internalEdges)
         #stack_slice.addCell(self)
         #self.roundness = 0
         if not self.internalEdges:

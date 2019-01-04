@@ -20,86 +20,6 @@ import matlab.engine
 from operator import add
 import scipy.ndimage
 
-def makeClusters(segmented, binary, stack_slice):
-    
-    Cluster.clusters = []
-    boundaries = findSegmentedBoundary(segmented)
-    clusterBounds = []
-    #print(boundaries)
-    
-    for object_num in range(1, len(boundaries) + 1): #object numbering begins at 1
-        clusterBounds.append(boundaries[object_num]) #<<-- simple way to get all boundary points but not account for order/loops/contained cells
-        '''
-        boundary = boundaries[object_num]
-
-        current = [boundary[0]]
-        pivot = boundary.pop(0)
-        #current = clusterBounds[-1] #last cluster element
-        while True:
-            if current:
-                #print(len(current), len(boundary))
-                if len(current) > 1000:
-                    print("STOPPP")
-                    break
-                point = current[-1]
-            else:
-                break
-            neighbor_points = filter(lambda x: (x[0], x[1]) in boundary, getNeighborIndices(segmented, point[0], point[1])) #attempt Moore-neighbor
-            try:
-                neighbor = next(neighbor_points)
-            except StopIteration:    
-                neighbors = list(getNeighborIndices(segmented, point[0], point[1])) #generator to list
-
-                if (pivot[0], pivot[1]) not in neighbors:
-                    #remove internal loops if present; switch control back to point where inner loop intersects boundary and delete loop points
-                    k = -2 #start with second-last point
-                    internalLoop = False
-                    while abs(k) <= len(current):
-                        if (current[k][0], current[k][1]) in neighbors:
-                            del current[k+1:]
-                            internalLoop = True
-                            break
-                        k -= 1
-
-                    if not internalLoop: #could be extended line
-                        ex_line = False
-                        k = -2 #start with second-last point
-                        while abs(k) <= len(current):
-                            fork = getNeighborIndices(segmented, current[k][0], current[k][1])
-                            for n in fork: #getNeighborIndices(segmented, current[k][0], current[k][1]):
-                                if n in boundary:
-                                    del current[k+1:]
-                                    current.append(n)
-                                    ex_line = True #breaking out of while loop
-                                    break
-                            if ex_line:
-                                break
-                            k -= 1
-
-                        if not ex_line: #not internal loop nor extended line
-                            current.pop()
-                else:
-                    if len(boundary) < len(current):
-                        break #cluster is contiguous; exits outer while loop
-                    else:
-                        current = [boundary.pop(0)] #likely detected object within larger object therefore kill
-
-            else:
-                current.append(neighbor)
-                boundary.remove(neighbor)
-                #print("cluster extended")
-        if len(current) > 24 and len(current) < 1000:
-            clusterBounds.append(current)
-            #print("###############################cluster appended")
-        '''
-    
-    Cluster.clusters = []
-    for c in clusterBounds:
-            Cluster.clusters.append(Cluster(binary, c, stack_slice))
-    print("$$$$$$$$$$$$$$", len(clusterBounds))
-    return Cluster.clusters
-
-
 def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = []
     eng = matlab.engine.start_matlab()
@@ -128,6 +48,10 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = [] #VERY IMPORTANT TO RESET
     for c, p in zip(clusterBounds, pivots):
         Cluster.clusters.append(Cluster(binary, c, stack_slice, p))
+
+    visualPivots = showPivots(binary, Cluster.clusters)
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotPoints.tif'), visualPivots)
+
     return Cluster.clusters, boundary
 
 def makeBinary(inFile, pic_array, pic):
@@ -225,21 +149,21 @@ def visualize_labeled(labeled, inFile, name='_labeled'):
 
 
 def makeCells(inFile, clusters=Cluster.clusters):
-    noise_clusters = []
     i = -1
     for c in clusters:
         try:
-            #c.getTrueCusps(10)
+            c.getTrueCusps(12)
             pass
         except AssertionError:
             noise_clusters.append(c)
         else:
-            c.growPivots()
-            #c.pruneCusps()
-            # c.propagateInternalBoundaries()
-            # c.showCusps()  #WONT WORK with boolean binary
-            # c.splitByEdges()
-            c.transformToCell()
+            #c.growPivots()
+            #c.transformToCell()
+            c.pruneCusps()
+            c.propagateInternalBoundaries()
+            c.showCusps()  #WONT WORK with boolean binary
+            c.splitByEdges()
+            
     for c in noise_clusters:
         c.kill()
     if Cluster.clusters:
@@ -346,10 +270,10 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     Cluster.segmented = segmented
     clusters, boundary = makeClusters_Matlab(bin_array, inFile, stack_slice)
     #for c in Cluster.clusters:
-    visualize_Clusters(bin_array, inFile, clusters=clusters, num=0)
-    c = Cluster.clusters[0]
-    print("Number of pivots: {0}".format(len(c.pivots)))
-    c.growPivots()
+    # visualize_Clusters(bin_array, inFile, clusters=clusters, num=0)
+    # c = Cluster.clusters[0]
+    # print("Number of pivots: {0}".format(len(c.pivots)))
+    # c.growPivots()
     #clusters = makeClusters(segmented, bin_array, stack_slice)
     superimposeBoundary(inFile, pic_array, boundary=boundary)
     saveClusters(inFile, clusters)
@@ -417,6 +341,8 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
+    global noise_clusters
+    noise_clusters = []
     x = 2
     if split:
         binarized, clustered = True, True
@@ -487,6 +413,9 @@ def overlay(current_stack, prefix, pic_arrays):
 
         #print(ss.finalizedCellSlice.cells)
         for c in ss.cells:
+            for b in c.boundary:
+                largest_3d[-1][b[0]][b[1]] = [0,0,0]
+        for c in noise_clusters:
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = [0,0,0]
 
