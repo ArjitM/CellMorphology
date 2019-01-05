@@ -98,7 +98,7 @@ class Cluster:
             angles = []
             notCusp = False
 
-            for segmentPoint in range(segmentLen // 2, 1 + segmentLen):
+            for segmentPoint in range((segmentLen // 4) * 3, 1 + segmentLen):
                 
                 before = self.boundary[k - segmentPoint]
                 try:
@@ -134,7 +134,7 @@ class Cluster:
                 continue
             angle = np.nanmean(angles)
 
-            if angle < 0.75 * math.pi:
+            if angle < 0.6 * math.pi:
                 cusps.append(Cusp(point, left_deriv, right_deriv, angle, angles))
 
         self.cusps = cusps

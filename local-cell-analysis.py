@@ -20,6 +20,7 @@ import matlab.engine
 from operator import add
 import scipy.ndimage
 
+
 def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = []
     eng = matlab.engine.start_matlab()
@@ -150,12 +151,14 @@ def visualize_labeled(labeled, inFile, name='_labeled'):
 
 def makeCells(inFile, clusters=Cluster.clusters):
     i = -1
+    #noise_clusters = []
     for c in clusters:
         try:
             c.getTrueCusps(12)
             pass
         except AssertionError:
-            noise_clusters.append(c)
+            #noise_clusters.append(c)
+            c.kill()
         else:
             #c.growPivots()
             #c.transformToCell()
@@ -164,8 +167,6 @@ def makeCells(inFile, clusters=Cluster.clusters):
             c.showCusps()  #WONT WORK with boolean binary
             c.splitByEdges()
             
-    for c in noise_clusters:
-        c.kill()
     if Cluster.clusters:
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), Cluster.clusters[0].binary)
 
@@ -341,8 +342,6 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
-    global noise_clusters
-    noise_clusters = []
     x = 2
     if split:
         binarized, clustered = True, True
@@ -415,9 +414,10 @@ def overlay(current_stack, prefix, pic_arrays):
         for c in ss.cells:
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = [0,0,0]
-        for c in noise_clusters:
+
+        for c in ss.overlapping_Cells: 
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = [0,0,0]
+                largest_3d[-1][b[0]][b[1]] = white_
 
         for c in ss.roundness_rejected_Cells: #this is a subset of cells (above) so order matters!
             for b in c.boundary:
@@ -431,9 +431,6 @@ def overlay(current_stack, prefix, pic_arrays):
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = magenta
 
-        # for c in ss.overlapping_Cells: 
-        #     for b in c.boundary:
-        #         largest_3d[-1][b[0]][b[1]] = white_
 
         for c in ss.finalizedCellSlice.cells:
             outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
