@@ -15,6 +15,7 @@ import copy
 global WHITE
 WHITE = None
 
+
 class Cusp:
 
     def __init__(self, point, left_deriv, right_deriv, angle, angle_trend):
@@ -68,7 +69,7 @@ class Cluster:
 
     clusters = []
 
-    def __init__(self, binary, boundary, stack_slice, pivots=None, internalEdges=None):
+    def __init__(self, binary, boundary, stack_slice, pivots=None, internalEdges=None): #, segmented=None, pic=None):
 
         self.boundary = boundary #DO NOT SORT THIS! Order is important
         #self.boundary2D = self.getBoundary2D()
@@ -80,9 +81,13 @@ class Cluster:
         self.constriction_points = []
         self.internalEdges = internalEdges
         self.stack_slice = stack_slice
-        self.object_number = None
+        # if not isinstance(self, Cell): 
+        #     #self SHOUD NOT be Cell, only Cluster!
+        #     self.segmented = Cluster.segmented if (segmented is None) else segmented
+        #     self.pic = Cluster.pic if (pic is None) else pic 
+        #self.object_number = None
         self.internalEdges = [] if (internalEdges is None) else internalEdges #using [] as default argument is problematic; old is appended to default
-        self.object_number = Cluster.segmented[self.boundary[0][0], self.boundary[0][1]] #initialize object number from segmented array
+        #self.object_number = Cluster.segmented[self.boundary[0][0], self.boundary[0][1]] #initialize object number from segmented array
 
         if not isinstance(self, Cell):
             Cluster.clusters.append(self)

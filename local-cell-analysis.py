@@ -20,7 +20,6 @@ import matlab.engine
 from operator import add
 import scipy.ndimage
 
-
 def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = []
     eng = matlab.engine.start_matlab()
@@ -47,9 +46,13 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
 
     boundary = [item for sublist in clusterBounds for item in sublist]
     Cluster.clusters = [] #VERY IMPORTANT TO RESET
+    k=0
     for c, p in zip(clusterBounds, pivots):
-        Cluster.clusters.append(Cluster(binary, c, stack_slice, p))
+        if k % 2 == 1:
+            Cluster.clusters.append(Cluster(binary, c, stack_slice, p))
+        k += 1
 
+    print("NUMBER OF CLUSTERS IS: ", len(Cluster.clusters))
     visualPivots = showPivots(binary, Cluster.clusters)
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotPoints.tif'), visualPivots)
 
@@ -154,18 +157,19 @@ def makeCells(inFile, clusters=Cluster.clusters):
     #noise_clusters = []
     for c in clusters:
         try:
-            c.getTrueCusps(12)
-            pass
+            c.getTrueCusps(16)
+            
         except AssertionError:
             #noise_clusters.append(c)
             c.kill()
+
         else:
             #c.growPivots()
-            #c.transformToCell()
-            c.pruneCusps()
-            c.propagateInternalBoundaries()
-            c.showCusps()  #WONT WORK with boolean binary
-            c.splitByEdges()
+            c.transformToCell()
+            # c.pruneCusps()
+            # c.propagateInternalBoundaries()
+            # c.showCusps()  #WONT WORK with boolean binary
+            # c.splitByEdges()
             
     if Cluster.clusters:
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), Cluster.clusters[0].binary)
@@ -208,7 +212,8 @@ def superimposeBoundary(inFile, pic_array, boundary=None):
 def loadClusters(inFile, stack_slice):
     clustFile = open(inFile.replace('.tif', '_clusters.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
     Cluster.clusters = pickle.load(clustFile)
-    #print(len(Cluster.clusters))
+    Cluster.segmented = pickle.load(clustFile)
+    print('******', len(Cluster.clusters))
     for c in Cluster.clusters:
         #print("Cluster!!")
         c.stack_slice = stack_slice
@@ -218,6 +223,7 @@ def loadClusters(inFile, stack_slice):
 def saveClusters(inFile, clusters=Cluster.clusters):
     outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
     pickle.dump(clusters, outFile)
+    pickle.dump(Cluster.segmented, outFile)
     outFile.close()
 
 def loadCells(inFile, stack_slice):
@@ -254,10 +260,13 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
         clusters = []
         try:
             clusters = loadClusters(inFile, stack_slice)
+            Cluster.pic = pic_array
         except (FileNotFoundError, EOFError):
             binarized = True
             #return complete_protocol()
         else:
+            testKMeans(inFile, clusters)
+            superimposeBoundary(inFile, pic_array)
             makeCells(inFile, clusters)
             saveCells(inFile, stack_slice)
             return pic_array
@@ -270,23 +279,13 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     Cluster.pic = pic_array
     Cluster.segmented = segmented
     clusters, boundary = makeClusters_Matlab(bin_array, inFile, stack_slice)
-    #for c in Cluster.clusters:
-    # visualize_Clusters(bin_array, inFile, clusters=clusters, num=0)
-    # c = Cluster.clusters[0]
-    # print("Number of pivots: {0}".format(len(c.pivots)))
-    # c.growPivots()
-    #clusters = makeClusters(segmented, bin_array, stack_slice)
+    testKMeans(inFile, clusters)
     superimposeBoundary(inFile, pic_array, boundary=boundary)
     saveClusters(inFile, clusters)
     makeCells(inFile, clusters) #saves edged picture
     saveCells(inFile, stack_slice)
     return pic_array
 
-   # test = internalBorderTest(pic_array, out_array, boundary)
-    #visualize_Clusters(clusters, out_array, inFile)
-
-    # skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), out_array)
-    # return pic_array
 
 
 def visualize_Clusters(out_array, inFile, clusters=Cluster.clusters, num=None):    
@@ -342,7 +341,7 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
-    x = 2
+    x = 3
     if split:
         binarized, clustered = True, True
     elif clustered:
@@ -375,11 +374,35 @@ def parallel(prefix, binarized, clustered, split, overlaid):
         else:
             print(prefix)
             x += 1
-            if x > 4: 
+            if x > 3: 
                 break
 
     current_stack.collate_slices()
     overlay(current_stack, prefix, pic_arrays)
+
+import pandas as pd 
+from sklearn.cluster import KMeans
+
+def groupPoints(boundary):
+    KMean = KMeans(n_clusters=2)
+    b = np.array(boundary)
+    KMean.fit(b)#.reshape(-1,1))
+    return list(KMean.labels_)
+
+def testKMeans(inFile, clusters):
+    bin_array = clusters[0].binary
+    out_rgb = skimage.color.gray2rgb(bin_array)
+    out_rgb.fill(0)
+
+    colorLimit = skimage.dtype_limits(out_rgb, True)[1]
+    colored = ([0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
+
+    for c in clusters:
+        kmean_labels = groupPoints(c.boundary)
+        for p, k_label in zip(c.boundary, kmean_labels):
+            out_rgb[p[0], p[1]] = colored[k_label % len(colored)]
+
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_kmeans.tif'), out_rgb)
 
 def overlay(current_stack, prefix, pic_arrays):
 
