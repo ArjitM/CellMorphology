@@ -48,8 +48,8 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = [] #VERY IMPORTANT TO RESET
     k=0
     for c, p in zip(clusterBounds, pivots):
-        if k % 2 == 1:
-            Cluster.clusters.append(Cluster(binary, c, stack_slice, p))
+        #if k % 2 == 1:
+        Cluster.clusters.append(Cluster(binary, c, stack_slice, p))
         k += 1
 
     print("NUMBER OF CLUSTERS IS: ", len(Cluster.clusters))
@@ -280,7 +280,8 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     Cluster.segmented = segmented
     clusters, boundary = makeClusters_Matlab(bin_array, inFile, stack_slice)
     testKMeans(inFile, clusters)
-    superimposeBoundary(inFile, pic_array, boundary=boundary)
+    superimposeBoundary(inFile, pic_array)#, boundary=boundary)
+    visualize_Clusters(pic_array, inFile, Cluster.clusters)
     saveClusters(inFile, clusters)
     makeCells(inFile, clusters) #saves edged picture
     saveCells(inFile, stack_slice)
@@ -288,7 +289,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
 
 
 
-def visualize_Clusters(out_array, inFile, clusters=Cluster.clusters, num=None):    
+def visualize_Clusters(out_array, inFile, clusters, num=None):    
     c_arr = copy.deepcopy(out_array)
     for i in range(len(c_arr)):
         for j in range(len(c_arr[0])):
@@ -297,13 +298,16 @@ def visualize_Clusters(out_array, inFile, clusters=Cluster.clusters, num=None):
     if num is None:        
         for k in range(len(clusters)):
             ck = [(c[0], c[1]) for c in clusters[k].boundary]
-            for i in range(len(c_arr)):
-                for j in range(len(c_arr[0])):
-                    if (i,j) in ck:
-                        c_arr[i][j] = WHITE
-                    else:
-                        c_arr[i][j] = 0
-            skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
+            for (i,j) in ck:
+                c_arr[i][j] = WHITE
+            # for i in range(len(c_arr)):
+            #     for j in range(len(c_arr[0])):
+            #         if (i,j) in ck:
+            #             c_arr[i][j] = WHITE
+            #         else:
+            #             c_arr[i][j] = 0
+            # skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
+        skimage.external.tifffile.imsave(inFile.replace('.tif', '_clusters_' +'.tif'), c_arr)
     else:
         k = num
         ck = [(c[0], c[1]) for c in clusters[k].boundary]
@@ -383,8 +387,8 @@ def parallel(prefix, binarized, clustered, split, overlaid):
 import pandas as pd 
 from sklearn.cluster import KMeans
 
-def groupPoints(boundary):
-    KMean = KMeans(n_clusters=2)
+def groupPoints(boundary, num_groups=2):
+    KMean = KMeans(n_clusters=num_groups)
     b = np.array(boundary)
     KMean.fit(b)#.reshape(-1,1))
     return list(KMean.labels_)
@@ -398,7 +402,7 @@ def testKMeans(inFile, clusters):
     colored = ([0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
 
     for c in clusters:
-        kmean_labels = groupPoints(c.boundary)
+        kmean_labels = groupPoints(c.boundary, max(1,len(c.pivots)+2))
         for p, k_label in zip(c.boundary, kmean_labels):
             out_rgb[p[0], p[1]] = colored[k_label % len(colored)]
 

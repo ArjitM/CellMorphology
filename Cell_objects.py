@@ -92,12 +92,16 @@ class Cluster:
         if not isinstance(self, Cell):
             Cluster.clusters.append(self)
 
-    def getTrueCusps(self, segmentLen=8):
-        #print(self.boundary)
+    def getTrueCusps(self, segmentLen=8, arc=None):
+        #arc must be None if using gradient-only declumping
+        ##arc defined as important regions as per kmeans-results
         assert len(self.boundary) > segmentLen * 3, 'boundary is too short. consider killing cluster'
         cusps = []
 
-        for point in self.boundary: #filter(lambda p: p[2], self.boundary):
+        if arc is None:
+            arc = self.boundary
+
+        for point in arc: #filter(lambda p: p[2], self.boundary):
             k = self.boundary.index(point)
 
             angles = []
@@ -118,33 +122,49 @@ class Cluster:
 
                 ldy = - (point[0] - before[0]); ldx = (point[1] - before[1])
                 if ldx == 0:
-                    left_deriv = math.inf if ldy > 0 else (- math.inf) #1000 if ldy > 0 else -1000
-                    #continue
+                    left_deriv = math.inf if ldy > 0 else (- math.inf) 
                 else:
                     left_deriv = ldy / ldx
 
                 rdy = - (after[0] - point[0]); rdx = (after[1] - point[1])
                 if rdx == 0:
-                    right_deriv = math.inf if rdy > 0 else (- math.inf) #1000 if rdy > 0 else -1000
-                    #continue
+                    right_deriv = math.inf if rdy > 0 else (- math.inf) 
                 else:
                     right_deriv = rdy / rdx
-
                 angles.append(abs( math.atan(left_deriv) - math.atan(right_deriv) ))
 
-            if notCusp:
-                continue
-
-            if angles == []:
+            if notCusp or angles == []:
                 continue
             angle = np.nanmean(angles)
-
             if angle < 0.6 * math.pi:
                 cusps.append(Cusp(point, left_deriv, right_deriv, angle, angles))
 
-        self.cusps = cusps
+        if arc is None: #is not being used with kmeans algorithm, i.e. declumping is gradient ONLY
+            self.cusps = cusps
+
         return cusps
-        
+
+    def getCuspsKmeans(self, kmean_labels, segmentLen=8):
+        if len(self.boundary) > segmentLen * 3:
+            return None
+            
+        assert len(kmean_labels) == len(self.boundary), 'labels and boundary points must be 1:1'
+        k = 0
+        group_change_points = []
+        while k < len(self.boundary):
+            if kmean_labels[k] != kmean_labels[k-1]:
+                group_change_points.append(k)
+            k +=1
+
+        cleave_points = []
+        for grp in group_change_points:
+            group_change_region = [ self.boundary[i % len(self.boundary)] for i in range(grp-5, grp+6) ]
+            cusps = self.getTrueCusps(segmentLen=segmentLen, arc=group_change_region)
+            if len(cusps) == 0:
+                continue
+            cleave_points = min(cusps, key=lambda c: c.angle)
+        return cleave_points
+
     def pruneCusps(self):
         # cusps = [c.point for c in self.cusps]
         arcs = []
