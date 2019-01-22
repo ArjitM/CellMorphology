@@ -152,24 +152,33 @@ def visualize_labeled(labeled, inFile, name='_labeled'):
     skimage.external.tifffile.imsave(inFile.replace('.tif', '{0}.tif'.format(name)), labeled_image)
 
 
-def makeCells(inFile, clusters=Cluster.clusters):
-    i = -1
-    #noise_clusters = []
-    for c in clusters:
-        try:
-            c.getTrueCusps(16)
-            
-        except AssertionError:
-            #noise_clusters.append(c)
-            c.kill()
+def makeCells(inFile, clusters):
+    # i = -1
+    # #noise_clusters = []
 
+    # for c in clusters:
+    #     try:
+    #         #c.getTrueCusps(16)
+    #     except AssertionError:
+    #         #noise_clusters.append(c)
+    #         c.kill()
+    #     else:
+    #         #c.growPivots()
+    #         #c.transformToCell()
+    #         # c.pruneCusps()
+    #         # c.propagateInternalBoundaries()
+    #         # c.showCusps()  #WONT WORK with boolean binary
+    #         # c.splitByEdges()
+
+    labels_per_cluster = declumpKMeans(inFile, clusters)
+    for c, kmean_labels in zip(clusters, labels_per_cluster):
+        cleave_points = c.getCuspsKMeans(kmean_labels)
+        if cleave_points is not None:
+            c.propagateInternalBoundaries(cleave_points=cleave_points)
+            c.splitByEdges()
+            c.showCusps()
         else:
-            #c.growPivots()
             c.transformToCell()
-            # c.pruneCusps()
-            # c.propagateInternalBoundaries()
-            # c.showCusps()  #WONT WORK with boolean binary
-            # c.splitByEdges()
             
     if Cluster.clusters:
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), Cluster.clusters[0].binary)
@@ -265,7 +274,11 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
             binarized = True
             #return complete_protocol()
         else:
-            testKMeans(inFile, clusters)
+            global WHITE
+            WHITE = skimage.dtype_limits(pic_array, True)[1]
+            Binarize.WHITE = WHITE
+            Binarize.bin_WHITE = WHITE
+            Cell_objects.WHITE = WHITE
             superimposeBoundary(inFile, pic_array)
             makeCells(inFile, clusters)
             saveCells(inFile, stack_slice)
@@ -279,9 +292,8 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     Cluster.pic = pic_array
     Cluster.segmented = segmented
     clusters, boundary = makeClusters_Matlab(bin_array, inFile, stack_slice)
-    testKMeans(inFile, clusters)
     superimposeBoundary(inFile, pic_array)#, boundary=boundary)
-    visualize_Clusters(pic_array, inFile, Cluster.clusters)
+    #visualize_Clusters(pic_array, inFile, Cluster.clusters)
     saveClusters(inFile, clusters)
     makeCells(inFile, clusters) #saves edged picture
     saveCells(inFile, stack_slice)
@@ -393,7 +405,7 @@ def groupPoints(boundary, num_groups=2):
     KMean.fit(b)#.reshape(-1,1))
     return list(KMean.labels_)
 
-def testKMeans(inFile, clusters):
+def declumpKMeans(inFile, clusters):
     bin_array = clusters[0].binary
     out_rgb = skimage.color.gray2rgb(bin_array)
     out_rgb.fill(0)
@@ -401,12 +413,15 @@ def testKMeans(inFile, clusters):
     colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
 
+    labels_per_cluster = []
+
     for c in clusters:
         kmean_labels = groupPoints(c.boundary, max(1,len(c.pivots)+2))
+        labels_per_cluster.append(kmean_labels)
         for p, k_label in zip(c.boundary, kmean_labels):
             out_rgb[p[0], p[1]] = colored[k_label % len(colored)]
-
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_kmeans.tif'), out_rgb)
+    return labels_per_cluster
 
 def overlay(current_stack, prefix, pic_arrays):
 

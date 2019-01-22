@@ -95,13 +95,16 @@ class Cluster:
     def getTrueCusps(self, segmentLen=8, arc=None):
         #arc must be None if using gradient-only declumping
         ##arc defined as important regions as per kmeans-results
-        assert len(self.boundary) > segmentLen * 3, 'boundary is too short. consider killing cluster'
         cusps = []
 
         if arc is None:
             arc = self.boundary
+            assert len(self.boundary) > segmentLen * 3, 'boundary is too short. consider killing cluster'
 
-        for point in arc: #filter(lambda p: p[2], self.boundary):
+        if len(self.boundary) < segmentLen * 2:
+            return None
+
+        for point in arc: 
             k = self.boundary.index(point)
 
             angles = []
@@ -109,11 +112,12 @@ class Cluster:
 
             for segmentPoint in range((segmentLen // 4) * 3, 1 + segmentLen):
                 
-                before = self.boundary[k - segmentPoint]
                 try:
-                    after = self.boundary[k + segmentPoint]
+                    before = self.boundary[k - segmentPoint]
                 except IndexError:
-                    after = self.boundary[k + segmentPoint - len(self.boundary)]
+                    print(k-segmentPoint)
+                    #after = self.boundary[k + segmentPoint - len(self.boundary)]
+                after = self.boundary[(k + segmentPoint) % len(self.boundary)]
 
                 midpt = (math.floor(np.mean([p[0] for p in [before, after]])), math.floor(np.mean([p[1] for p in [before, after]])))
                 if self.binary[midpt[0]][midpt[1]] != 0:
@@ -144,10 +148,10 @@ class Cluster:
 
         return cusps
 
-    def getCuspsKmeans(self, kmean_labels, segmentLen=8):
-        if len(self.boundary) > segmentLen * 3:
+    def getCuspsKMeans(self, kmean_labels, segmentLen=8):
+        if len(self.boundary) < segmentLen * 3:
             return None
-            
+
         assert len(kmean_labels) == len(self.boundary), 'labels and boundary points must be 1:1'
         k = 0
         group_change_points = []
@@ -160,9 +164,9 @@ class Cluster:
         for grp in group_change_points:
             group_change_region = [ self.boundary[i % len(self.boundary)] for i in range(grp-5, grp+6) ]
             cusps = self.getTrueCusps(segmentLen=segmentLen, arc=group_change_region)
-            if len(cusps) == 0:
+            if cusps is None or len(cusps) == 0:
                 continue
-            cleave_points = min(cusps, key=lambda c: c.angle)
+            cleave_points.append(min(cusps, key=lambda c: c.angle))
         return cleave_points
 
     def pruneCusps(self):
@@ -183,7 +187,7 @@ class Cluster:
         self.arcs = [arc for arc in arcs if len(arc) >= 1] #removing arcs with len < 3 DOES NOT work!
         return self.arcs
 
-    def showCusps(self, *args):
+    def showCusps(self):
         #for c in self.constriction_points:
         # for arc in self.arcs:
         #     for c in arc:
@@ -507,16 +511,16 @@ class Cell(Cluster):
             for btwn in range(var_bounds[k][index], var_bounds[k+1][index]):
                 #toggle = int(not(bool(index))) #toggle btwn 0 and 1
                 if index == 1:
-                    #if self.binary[var_bounds[k][0]][btwn] == 0:
-                    if Cluster.segmented[var_bounds[k][0]][btwn] == 0:
+                    if self.binary[var_bounds[k][0]][btwn] == 0:
+                    #if Cluster.segmented[var_bounds[k][0]][btwn] == 0:
                         #self.binary[var_bounds[k][0]][btwn]=WHITE//2
                         interrupted = True
                         break
                     if area and self.binary[var_bounds[k][0]][btwn] == 0:
                         self.addInternalBoundaryHit()
                 else:
-                    #if self.binary[btwn][var_bounds[k][1]] == 0: #incorrectly accounts for contained cells
-                    if Cluster.segmented[btwn][var_bounds[k][1]] == 0:
+                    if self.binary[btwn][var_bounds[k][1]] == 0: #incorrectly accounts for contained cells
+                    #if Cluster.segmented[btwn][var_bounds[k][1]] == 0:
                         #self.binary[btwn][var_bounds[k][1]]=WHITE//2
                         interrupted = True
                         break
