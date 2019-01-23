@@ -530,6 +530,7 @@ class Cell(Cluster):
                     #if Cluster.segmented[btwn][var_bounds[k][1]] == 0:
                         interrupted = True
                         var_pairs.append([var_bounds[k], (var_bounds[k][0], btwn - 1) ])
+                        z=1
                         while btwn + z < var_bounds[k+1][index] and self.binary[var_bounds[k][0]][btwn+z] == 0:
                             z += 1
                         start_index = btwn + z #pickup from after the internal boundary or region
