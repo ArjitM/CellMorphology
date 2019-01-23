@@ -553,6 +553,7 @@ class Cell(Cluster):
     @property
     def area(self):
         self.interior = []
+        self.internalBoundaryHits = 0
         bounds = self.getBoundary2D() #returns row-wise 2d matrix
         area = 0
         for b in bounds: #boundary points in each row
