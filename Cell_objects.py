@@ -508,22 +508,32 @@ class Cell(Cluster):
         var_pairs = []
         while k < len(var_bounds) - 1:
             interrupted = False
-            for btwn in range(var_bounds[k][index], var_bounds[k+1][index]):
+
+            start_index = var_bounds[k][index]
+            for btwn in range(start_index, var_bounds[k+1][index]):
                 #toggle = int(not(bool(index))) #toggle btwn 0 and 1
                 if index == 1:
                     if self.binary[var_bounds[k][0]][btwn] == 0:
                     #if Cluster.segmented[var_bounds[k][0]][btwn] == 0:
-                        #self.binary[var_bounds[k][0]][btwn]=WHITE//2
                         interrupted = True
-                        break
-                    if area and self.binary[var_bounds[k][0]][btwn] == 0:
-                        self.addInternalBoundaryHit()
+                        var_pairs.append([var_bounds[k], (var_bounds[k][0], btwn - 1) ])
+                        if area and self.binary[var_bounds[k][0]][btwn] == 0:
+                            self.addInternalBoundaryHit()
+
+                        z = 1
+                        while btwn + z < var_bounds[k+1][index] and self.binary[var_bounds[k][0]][btwn+z] == 0:
+                            z += 1
+                        start_index = btwn + z #pickup from after the internal boundary or region
+                        #break
                 else:
                     if self.binary[btwn][var_bounds[k][1]] == 0: #incorrectly accounts for contained cells
                     #if Cluster.segmented[btwn][var_bounds[k][1]] == 0:
-                        #self.binary[btwn][var_bounds[k][1]]=WHITE//2
                         interrupted = True
-                        break
+                        var_pairs.append([var_bounds[k], (var_bounds[k][0], btwn - 1) ])
+                        while btwn + z < var_bounds[k+1][index] and self.binary[var_bounds[k][0]][btwn+z] == 0:
+                            z += 1
+                        start_index = btwn + z #pickup from after the internal boundary or region
+                        #break
             if not interrupted:
                 var_pairs.append([var_bounds[k], var_bounds[k+1]])
             k += 1
