@@ -52,9 +52,11 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
         Cluster.clusters.append(Cluster(binary, c, stack_slice, p))
         k += 1
 
+    import copy
     print("NUMBER OF CLUSTERS IS: ", len(Cluster.clusters))
-    visualPivots = showPivots(binary, Cluster.clusters)
+    visualPivots = showPivots(copy.deepcopy(binary), Cluster.clusters)
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotPoints.tif'), visualPivots)
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotCheck.tif'), binary)
 
     return Cluster.clusters, boundary
 
@@ -170,15 +172,18 @@ def makeCells(inFile, clusters):
     #         # c.showCusps()  #WONT WORK with boolean binary
     #         # c.splitByEdges()
 
-    labels_per_cluster = declumpKMeans(inFile, clusters)
-    for c, kmean_labels in zip(clusters, labels_per_cluster):
-        cleave_points = c.getCuspsKMeans(kmean_labels)
-        if cleave_points is not None:
-            c.propagateInternalBoundaries(cleave_points=cleave_points)
-            c.splitByEdges()
-            c.showCusps()
-        else:
-            c.transformToCell()
+    labels_per_cluster = declumpKMeans(inFile, clusters, clusters[0].binary, Cluster.pic)
+
+    # for c, kmean_labels in zip(clusters, labels_per_cluster):
+    #     cleave_points = c.getCuspsKMeans(kmean_labels)
+    #     if cleave_points is not None:
+    #         c.propagateInternalBoundaries(cleave_points=cleave_points)
+    #         c.splitByEdges()
+    #         c.showCusps()
+    #     else:
+    #         c.transformToCell()
+    for c in clusters:
+        c.transformToCell()
             
     if Cluster.clusters:
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), Cluster.clusters[0].binary)
@@ -399,13 +404,26 @@ def parallel(prefix, binarized, clustered, split, overlaid):
 import pandas as pd 
 from sklearn.cluster import KMeans
 
-def groupPoints(boundary, num_groups=2):
+def groupPointsBoundary(boundary, num_groups=2):
     KMean = KMeans(n_clusters=num_groups)
     b = np.array(boundary)
     KMean.fit(b)#.reshape(-1,1))
     return list(KMean.labels_)
 
-def declumpKMeans(inFile, clusters):
+def groupPoints(points, num_groups, sample_weights=None):
+    KMean = KMeans(n_clusters=num_groups)
+    b = np.array(points)
+    if sample_weights is not None:
+        sw = np.array(sample_weights)
+        try:
+            KMean.fit(b, sw) #.reshape(-1,1))
+        except ValueError:
+            return [0 for k in range(len(points))]
+    else:
+        KMean.fit(b)
+    return list(KMean.labels_)
+
+def declumpKMeansBoundary(inFile, clusters):
     bin_array = clusters[0].binary
     out_rgb = skimage.color.gray2rgb(bin_array)
     out_rgb.fill(0)
@@ -422,6 +440,27 @@ def declumpKMeans(inFile, clusters):
             out_rgb[p[0], p[1]] = colored[k_label % len(colored)]
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_kmeans.tif'), out_rgb)
     return labels_per_cluster
+
+def declumpKMeans(inFile, clusters, bin_array, pic_array):
+    out_rgb = skimage.color.gray2rgb(bin_array)
+    out_rgb.fill(0)
+    colorLimit = skimage.dtype_limits(out_rgb, True)[1]
+    colored = ([0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
+    labels_per_cluster = []
+
+    for c in clusters:
+        _ = c.area #updates interior
+        weights = []
+        for ci in c.interior:
+            weights.append(pic_array[ci[0], ci[1]])
+        kmean_labels = groupPoints(c.interior, num_groups=max(1,len(c.pivots)+1), sample_weights=weights)
+        labels_per_cluster.append(kmean_labels)
+        for p, k_label in zip(c.interior, kmean_labels):
+            out_rgb[p[0], p[1]] = colored[k_label % len(colored)]
+    skimage.external.tifffile.imsave(inFile.replace('.tif', '_kmeans.tif'), out_rgb)
+    return labels_per_cluster
+
+
 
 def overlay(current_stack, prefix, pic_arrays):
 

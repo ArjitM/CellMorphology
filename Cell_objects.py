@@ -54,16 +54,21 @@ def createPivots(pivots, binary):
     for pivot in pivots:
         if len(pivot) < 12:
             pruned.append((int(np.mean([p[0] for p in pivot])), int(np.mean([p[1] for p in pivot]))))
-        else:
-            erase(pivot, binary)
+        erase(pivot, binary)
     return pruned
 
 def showPivots(binary, clusters):
-    visualizedPivots = copy.deepcopy(binary)
+    #visualizedPivots = copy.deepcopy(binary) #deep copy is shallow!!!
+    # visualizedPivots = []
+    # for i in range(len(binary)):
+    #     visualizedPivots.append([])
+    #     for j in range(len(binary[0])):
+    #         visualizedPivots[-1].append(binary[i][j])
+
     for c in clusters:
         for p in c.pivots:
-            visualizedPivots[p[0],p[1]] = 0
-    return visualizedPivots
+            visualizedPivots[p[0]][p[1]] = 0
+    return np.array(visualizedPivots)
 
 class Cluster:
 
@@ -442,56 +447,6 @@ class Cluster:
                 cell_1.splitByEdges()
                 cell_2.splitByEdges()
 
-
-
-    def kill(self):
-        Cluster.clusters.remove(self)
-
-class Cell(Cluster):
-
-    def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
-        super().__init__(binary, boundary, stack_slice, internalEdges=internalEdges)
-        #stack_slice.addCell(self)
-        #self.roundness = 0
-        if not self.internalEdges:
-            self.internalBoundaryHits = 0 #if cell is in "controversial" lots of boundaries region, it is killed
-            self.interior = [] #this is updated by the area function
-            _ = self.area #invoke property to update interior
-            #self.center = scipy.ndimage.measurements.center_of_mass(self.interior + self.boundary)
-            if self.internalBoundaryHits > self.area / 3:
-                self.kill()
-            # self.colored = skimage.color.grey2rgb(self.binary)
-
-
-    def pointWithin(self, point):
-        y = point[0]
-        x = point[1]
-        y_bounds = [p for p in self.boundary if p[1] == x]
-        x_bounds = [p for p in self.boundary if p[0] == y]
-
-        if y_bounds == [] or x_bounds == []:
-            return False
-        if point in y_bounds or point in x_bounds:
-            return True
-        y_bounds.sort(key = lambda b: b[0])
-        x_bounds.sort(key = lambda b: b[1])
-        
-        if point[0] < y_bounds[0][0] or point[0] > y_bounds[-1][0] or point[1] < x_bounds[0][1] or point[1] > x_bounds[-1][1]:
-            return False
-
-        y_pairs = self.get_var_pairs(y_bounds, 0)
-        x_pairs = self.get_var_pairs(x_bounds, 1)
-
-        def within_var_bounds(var_pairs, point, index):
-            #index 0 for y, 1 for x
-            for var_pair in var_pairs:
-                if point[index] >= var_pair[0][index] and point[index] <= var_pair[1][index]:
-                    return True
-            return False
-
-        return within_var_bounds(y_pairs, point, 0) and within_var_bounds(x_pairs, point, 1)
-
-
     def getBoundary2D(self):
         sortedBound = self.boundary[:]
         sortedBound.sort() #default key sort tuples (i, j) by i then j
@@ -566,7 +521,52 @@ class Cell(Cluster):
                     self.interior.extend([(xp[0][0], k) for k in range(xp[0][1], xp[1][1]+1)])
         return area
 
+    def kill(self):
+        Cluster.clusters.remove(self)
 
+class Cell(Cluster):
+
+    def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
+        super().__init__(binary, boundary, stack_slice, internalEdges=internalEdges)
+        #stack_slice.addCell(self)
+        #self.roundness = 0
+        if not self.internalEdges:
+            self.internalBoundaryHits = 0 #if cell is in "controversial" lots of boundaries region, it is killed
+            self.interior = [] #this is updated by the area function
+            _ = self.area #invoke property to update interior
+            #self.center = scipy.ndimage.measurements.center_of_mass(self.interior + self.boundary)
+            if self.internalBoundaryHits > self.area / 3:
+                self.kill()
+            # self.colored = skimage.color.grey2rgb(self.binary)
+
+
+    def pointWithin(self, point):
+        y = point[0]
+        x = point[1]
+        y_bounds = [p for p in self.boundary if p[1] == x]
+        x_bounds = [p for p in self.boundary if p[0] == y]
+
+        if y_bounds == [] or x_bounds == []:
+            return False
+        if point in y_bounds or point in x_bounds:
+            return True
+        y_bounds.sort(key = lambda b: b[0])
+        x_bounds.sort(key = lambda b: b[1])
+        
+        if point[0] < y_bounds[0][0] or point[0] > y_bounds[-1][0] or point[1] < x_bounds[0][1] or point[1] > x_bounds[-1][1]:
+            return False
+
+        y_pairs = self.get_var_pairs(y_bounds, 0)
+        x_pairs = self.get_var_pairs(x_bounds, 1)
+
+        def within_var_bounds(var_pairs, point, index):
+            #index 0 for y, 1 for x
+            for var_pair in var_pairs:
+                if point[index] >= var_pair[0][index] and point[index] <= var_pair[1][index]:
+                    return True
+            return False
+
+        return within_var_bounds(y_pairs, point, 0) and within_var_bounds(x_pairs, point, 1)
 
     @property
     def roundness(self):
