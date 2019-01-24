@@ -52,13 +52,13 @@ def erase(pivot, binary):
 def createPivots(pivots, binary):
     pruned = []
     for pivot in pivots:
-        if len(pivot) < 12:
-            pruned.append((int(np.mean([p[0] for p in pivot])), int(np.mean([p[1] for p in pivot]))))
+        #if len(pivot) < 12:
+        pruned.append((int(np.mean([p[0] for p in pivot])), int(np.mean([p[1] for p in pivot]))))
         erase(pivot, binary)
     return pruned
 
 def showPivots(binary, clusters):
-    #visualizedPivots = copy.deepcopy(binary) #deep copy is shallow!!!
+    visualizedPivots = copy.deepcopy(binary) #deep copy is shallow!!!
     # visualizedPivots = []
     # for i in range(len(binary)):
     #     visualizedPivots.append([])
