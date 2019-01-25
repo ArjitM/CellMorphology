@@ -66,7 +66,7 @@ class Stack:
                         break
 
                 if hits > 1: # or cell.internalEdges: #limit reached
-                    self.split_Cells.append(cell)
+                    cell.stack_slice.split_Cells.append(cell)
                     continue
 
                 elif hits == 1:
