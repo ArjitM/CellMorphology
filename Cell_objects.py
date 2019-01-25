@@ -210,8 +210,8 @@ class Cluster:
         return nc
 
     @staticmethod
-    def makeCell(stack_slice, binary, cell_boundary, internalEdges):
-        cell = Cell(stack_slice, binary, cell_boundary, internalEdges)
+    def makeCell(stack_slice, binary, cell_interior, internalEdges):
+        cell = Cell(stack_slice, binary, cell_interior, internalEdges)
         return cell
 
     def growPivots(self):
@@ -447,6 +447,18 @@ class Cluster:
                 cell_1.splitByEdges()
                 cell_2.splitByEdges()
 
+    def splitConglomerates(self, kmean_labels):
+        assert len(self.interior) == len(kmean_labels), 'each interior point must be labeled'
+        cells = {}
+        for si, kl in zip(self.interior, kmean_labels):
+            if kl in cells.keys():
+                cells[kl].append(si)
+            else:
+                cells[kl] = [si]
+        for k in cells.keys():
+            Cluster.makeCell(self.stack_slice, self.binary, cells[k], [])
+
+
     def getBoundary2D(self):
         sortedBound = self.boundary[:]
         sortedBound.sort() #default key sort tuples (i, j) by i then j
@@ -526,21 +538,42 @@ class Cluster:
 
 class Cell(Cluster):
 
-    def __init__(self, stack_slice, binary, boundary, internalEdges=[]):
-        super().__init__(binary, boundary, stack_slice, internalEdges=internalEdges)
+    def __init__(self, stack_slice, binary, interior, internalEdges=[]): #boundary X interior
+
+        self.interior = interior
+        self.boundary = self.getBoundary(binary, interior)
+        #print('cell area: ', len(self.interior), len(self.boundary))
+        super().__init__(binary, self.boundary, stack_slice, internalEdges=internalEdges)
+        self.stack_slice.addCell(self)
         #stack_slice.addCell(self)
         #self.roundness = 0
-        if not self.internalEdges:
-            self.internalBoundaryHits = 0 #if cell is in "controversial" lots of boundaries region, it is killed
-            self.interior = [] #this is updated by the area function
-            _ = self.area #invoke property to update interior
-            #self.center = scipy.ndimage.measurements.center_of_mass(self.interior + self.boundary)
-            if self.internalBoundaryHits > self.area / 3:
-                self.kill()
+        # if not self.internalEdges:
+        #     self.internalBoundaryHits = 0 #if cell is in "controversial" lots of boundaries region, it is killed
+        #     #self.interior = [] #this is updated by the area function
+        #     #_ = self.area #invoke property to update interior
+        #     #self.center = scipy.ndimage.measurements.center_of_mass(self.interior + self.boundary)
+        #     if self.internalBoundaryHits > self.area / 3:
+        #         self.kill()
             # self.colored = skimage.color.grey2rgb(self.binary)
 
+    def getBoundary(self, binary, interior):
+        boundary = []
+        for si in interior:
+            added = False
+            k=0
+            for n in getNeighborIndices(binary, si[0], si[1]):
+                k+=1
+                if n not in interior:
+                    boundary.append(si)
+                    added = True
+                    break
+            if (not added) and k != 8:
+                boundary.append(si)
+        return boundary
 
     def pointWithin(self, point):
+        return point in self.interior
+        '''
         y = point[0]
         x = point[1]
         y_bounds = [p for p in self.boundary if p[1] == x]
@@ -567,6 +600,7 @@ class Cell(Cluster):
             return False
 
         return within_var_bounds(y_pairs, point, 0) and within_var_bounds(x_pairs, point, 1)
+        '''
 
     @property
     def roundness(self):
@@ -580,6 +614,12 @@ class Cell(Cluster):
         normalized_distances = list(np.sqrt([ ((distance(b, self.center) - ideal)/ideal)**2 for b in self.boundary]))
         return 1 - np.mean(normalized_distances)
 
+    @property
+    def area(self):
+        if len(self.interior) > 0:
+            return len(self.interior)
+        return Cluster.area(self)
+    
 
     def kill(self):
         if self in self.stack_slice.cells:

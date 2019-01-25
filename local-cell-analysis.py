@@ -182,8 +182,10 @@ def makeCells(inFile, clusters):
     #         c.showCusps()
     #     else:
     #         c.transformToCell()
-    for c in clusters:
-        c.transformToCell()
+    assert len(clusters) == len(labels_per_cluster), 'each cluster must be labeled'
+    for c, labels in zip(clusters, labels_per_cluster):
+        #c.transformToCell()
+        c.splitConglomerates(labels)
             
     if Cluster.clusters:
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), Cluster.clusters[0].binary)
@@ -362,7 +364,7 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
-    x = 3
+    x = 1
     if split:
         binarized, clustered = True, True
     elif clustered:
@@ -395,8 +397,8 @@ def parallel(prefix, binarized, clustered, split, overlaid):
         else:
             print(prefix)
             x += 1
-            if x > 3: 
-                break
+            # if x > 3: 
+            #     break
 
     current_stack.collate_slices()
     overlay(current_stack, prefix, pic_arrays)
@@ -452,7 +454,7 @@ def declumpKMeans(inFile, clusters, bin_array, pic_array):
         _ = c.area #updates interior
         weights = []
         for ci in c.interior:
-            weights.append(pic_array[ci[0], ci[1]])
+            weights.append(pic_array[ci[0], ci[1]]**2)
         kmean_labels = groupPoints(c.interior, num_groups=max(1,len(c.pivots)+1), sample_weights=weights)
         labels_per_cluster.append(kmean_labels)
         for p, k_label in zip(c.interior, kmean_labels):
