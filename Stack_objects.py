@@ -50,6 +50,11 @@ class Stack:
 
                 if len(cell.boundary) < 20:
                     continue
+
+                if cell.roundness < 0.6:
+                    cell.stack_slice.roundness_rejected_Cells.append(cell)
+                    continue
+
                 hits = 0
                 large_replace = []
 
@@ -94,11 +99,11 @@ class Stack:
                             self.large_Cells.remove(lr)
 
         for lg in self.large_Cells:
-            if not lg.internalEdges and lg.roundness > 0.4:
-                lg.stack_slice.finalizedCellSlice.addCell(lg)
-                self.largest_Cells.append(lg)
-            else:
-                lg.stack_slice.roundness_rejected_Cells.append(lg)
+            #if not lg.internalEdges and lg.roundness > 0.4:
+            lg.stack_slice.finalizedCellSlice.addCell(lg)
+            self.largest_Cells.append(lg)
+            # else:
+            #     lg.stack_slice.roundness_rejected_Cells.append(lg)
 
 
 

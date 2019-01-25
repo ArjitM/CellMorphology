@@ -364,7 +364,7 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
-    x = 1
+    x = 2
     if split:
         binarized, clustered = True, True
     elif clustered:
@@ -397,8 +397,8 @@ def parallel(prefix, binarized, clustered, split, overlaid):
         else:
             print(prefix)
             x += 1
-            # if x > 3: 
-            #     break
+            if x > 6: 
+                break
 
     current_stack.collate_slices()
     overlay(current_stack, prefix, pic_arrays)
@@ -500,27 +500,27 @@ def overlay(current_stack, prefix, pic_arrays):
 
         for c in ss.overlapping_Cells: 
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = white_
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in white_][i] for i in range(0, 3)]
 
         for c in ss.roundness_rejected_Cells: #this is a subset of cells (above) so order matters!
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = yellow
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in yellow][i] for i in range(0, 3)]
 
         for c in ss.split_Cells: 
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = green
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in green][i] for i in range(0, 3)]
 
         for c in ss.contained_Cells: 
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = magenta
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in magenta][i] for i in range(0, 3)]
 
 
         for c in ss.finalizedCellSlice.cells:
             outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
             for b in c.interior:
-                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in cyan][i] for i in range(0, 3)]
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.9) + [int(c * 0.1) for c in cyan][i] for i in range(0, 3)]
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = cyan
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in cyan][i] for i in range(0, 3)]
                 #colored[color_index]
         #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
     outFile.close()
@@ -554,7 +554,7 @@ def one_arg(prefix):
 # with Pool(1) as p:
 #   p.map(one_arg, prefixes[:4])
 
-one_arg('../Cell Size Project/RD1/expt_1/piece1-gfp-normal/piece-')
+one_arg('../Cell Size Project/RD1/expt_1/piece1-rfp-normal/piece-')
 
 
 

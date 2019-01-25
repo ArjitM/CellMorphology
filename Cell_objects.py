@@ -81,7 +81,7 @@ class Cluster:
         self.binary = binary
         self.cells = []
         self.cusps = []
-        self.center = (np.mean([p[0] for p in self.boundary]), np.mean([p[1] for p in self.boundary]))
+        self.center = (int(np.mean([p[0] for p in self.boundary])), int(np.mean([p[1] for p in self.boundary])))
         self.pivots = createPivots(pivots, binary) if pivots is not None else None
         self.constriction_points = []
         self.internalEdges = internalEdges
