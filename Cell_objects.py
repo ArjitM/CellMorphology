@@ -85,6 +85,8 @@ class Cluster:
         self.pivots = createPivots(pivots, binary) if pivots is not None else None
         if self.pivots and len(self.pivots) > 6:
             return
+        if len(self.boundary) < 20:
+            return
         self.constriction_points = []
         self.internalEdges = internalEdges
         self.stack_slice = stack_slice
