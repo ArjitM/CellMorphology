@@ -48,12 +48,12 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = [] #VERY IMPORTANT TO RESET
     k=0
     for c, p in zip(clusterBounds, pivots):
-        #if k % 2 == 1:
-        Cluster(binary, c, stack_slice, p)
+        if len(clusterBounds) > 30:
+            Cluster(binary, c, stack_slice, p)
         k += 1
 
-    import copy
     print("NUMBER OF CLUSTERS IS: ", len(Cluster.clusters))
+    visualize_Clusters(binary, inFile, Cluster.clusters)
     # visualPivots = showPivots(copy.deepcopy(binary), Cluster.clusters)
     # skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotPoints.tif'), visualPivots)
     # skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotCheck.tif'), binary)

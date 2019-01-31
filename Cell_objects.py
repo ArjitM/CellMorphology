@@ -85,8 +85,6 @@ class Cluster:
         self.pivots = createPivots(pivots, binary) if pivots is not None else None
         if self.pivots and len(self.pivots) > 6:
             return
-        if len(self.boundary) < 20:
-            return
         self.constriction_points = []
         self.internalEdges = internalEdges
         self.stack_slice = stack_slice
@@ -542,6 +540,8 @@ class Cell(Cluster):
 
         self.interior = interior
         self.boundary = self.getBoundary(binary, interior)
+        if len(self.boundary) < 25:
+            return
         #print('cell area: ', len(self.interior), len(self.boundary))
         super().__init__(binary, self.boundary, stack_slice, internalEdges=internalEdges)
         self.stack_slice.addCell(self)
