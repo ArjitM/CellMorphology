@@ -43,7 +43,7 @@ class Stack:
     def addSlice(self, stack_slice):
         self.stack_slices.append(stack_slice)
 
-    def collate_slices(self):
+    def collate_slices(self, nucleusMode):
         for stack_slice in self.stack_slices:
 
             for cell in stack_slice.cells:
@@ -51,7 +51,7 @@ class Stack:
                 if len(cell.boundary) < 20:
                     continue
 
-                if cell.roundness < 0.6:
+                if cell.roundness < 0.4:
                     cell.stack_slice.roundness_rejected_Cells.append(cell)
                     continue
 
@@ -65,16 +65,17 @@ class Stack:
                     if hits > 1:
                         break
 
-                if hits > 1: # or cell.internalEdges: #limit reached
-                    cell.stack_slice.split_Cells.append(cell)
-                    continue
+                # if hits > 1: # or cell.internalEdges: #limit reached
+                #     cell.stack_slice.split_Cells.append(cell)
+                #     continue
 
-                elif hits == 1:
+                if hits == 1:
                     self.large_Cells.remove(large_replace)
                     large_replace.stack_slice.contained_Cells.append(large_replace)
                     self.large_Cells.append(cell)
 
                 else:
+                    large_replace = []
                     new_cell = True
                     for large_Cell in self.large_Cells:
                         (contained, overlapping) = large_Cell.contains_or_overlaps(cell)

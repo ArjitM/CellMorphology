@@ -83,13 +83,11 @@ class Cluster:
         self.cusps = []
         self.center = (int(np.mean([p[0] for p in self.boundary])), int(np.mean([p[1] for p in self.boundary])))
         self.pivots = createPivots(pivots, binary) if pivots is not None else None
+        if self.pivots and len(self.pivots) > 6:
+            return
         self.constriction_points = []
         self.internalEdges = internalEdges
         self.stack_slice = stack_slice
-        # if not isinstance(self, Cell): 
-        #     #self SHOUD NOT be Cell, only Cluster!
-        #     self.segmented = Cluster.segmented if (segmented is None) else segmented
-        #     self.pic = Cluster.pic if (pic is None) else pic 
         #self.object_number = None
         self.internalEdges = [] if (internalEdges is None) else internalEdges #using [] as default argument is problematic; old is appended to default
         #self.object_number = Cluster.segmented[self.boundary[0][0], self.boundary[0][1]] #initialize object number from segmented array
@@ -605,14 +603,16 @@ class Cell(Cluster):
     @property
     def roundness(self):
         circum = len(self.boundary)
-        ideal = circum / (2 * math.pi)
+        pp_score = 4 * math.pi * self.area / (circum**2)
+        return pp_score
+        # ideal = circum / (2 * math.pi)
 
-        def distance(p1, p2):
-            d = math.sqrt( (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
-            return d
+        # def distance(p1, p2):
+        #     d = math.sqrt( (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+        #     return d
 
-        normalized_distances = list(np.sqrt([ ((distance(b, self.center) - ideal)/ideal)**2 for b in self.boundary]))
-        return 1 - np.mean(normalized_distances)
+        # normalized_distances = list(np.sqrt([ ((distance(b, self.center) - ideal)/ideal)**2 for b in self.boundary]))
+        #return 1 - np.mean(normalized_distances)
 
     @property
     def area(self):

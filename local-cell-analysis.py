@@ -49,14 +49,14 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     k=0
     for c, p in zip(clusterBounds, pivots):
         #if k % 2 == 1:
-        Cluster.clusters.append(Cluster(binary, c, stack_slice, p))
+        Cluster(binary, c, stack_slice, p)
         k += 1
 
     import copy
     print("NUMBER OF CLUSTERS IS: ", len(Cluster.clusters))
-    visualPivots = showPivots(copy.deepcopy(binary), Cluster.clusters)
-    skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotPoints.tif'), visualPivots)
-    skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotCheck.tif'), binary)
+    # visualPivots = showPivots(copy.deepcopy(binary), Cluster.clusters)
+    # skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotPoints.tif'), visualPivots)
+    # skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotCheck.tif'), binary)
 
     return Cluster.clusters, boundary
 
@@ -91,11 +91,14 @@ def makeBinary(inFile, pic_array, pic):
         out_array = out_array.astype(pic_array.dtype.type)
         out_array = np.array([ [WHITE if p else 0 for p in row] for row in out_array], dtype = pic_array.dtype.type)
 
-    #print(out_array)
-
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
 
-    regions.setNoiseCompartments(out_array, 0.95)
+    #regions.setNoiseCompartments(out_array, 0.95)
+    #regions.reviseNoiseCompartments()
+    for i in range(len(out_array)):
+        for j in range(len(out_array[0])):
+            if regions.getCompartment(i, j).noise_compartment:
+                out_array[i][j] = 0
 
     #enhanceEdges(pic_array, out_array, regions, nucleusMode=False) # use detected averages to guess missing edges
     #skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
@@ -107,8 +110,9 @@ def makeBinary(inFile, pic_array, pic):
     print("***made binary")
 
     labeled, num_objects = scipy.ndimage.label(out_array)
-    print("Objects detected", num_objects)
+    #print("Objects detected", num_objects)
     #print(labeled)
+    labeled = remove_largeNoise(labeled, num_objects)
     visualize_labeled(labeled, inFile)
 
     outFile = open(inFile.replace('.tif', '_labeled.pkl'), 'wb')
@@ -153,6 +157,22 @@ def visualize_labeled(labeled, inFile, name='_labeled'):
     #print(labeled_image.tolist()) 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '{0}.tif'.format(name)), labeled_image)
 
+def remove_largeNoise(labeled, num_objects):
+    if num_objects == 0:
+        return labeled
+
+    for n in range(1, num_objects):
+        obj = []
+        for i in range(len(labeled)):
+            for j in range(len(labeled[0])):
+                if labeled[i][j] == n:
+                    obj.append((i,j))
+        if len(obj) > 0.1 * len(labeled)**2:
+            for i,j in obj:
+                labeled[i][j] = 0
+    return labeled
+
+
 
 def makeCells(inFile, clusters):
     # i = -1
@@ -172,7 +192,6 @@ def makeCells(inFile, clusters):
     #         # c.showCusps()  #WONT WORK with boolean binary
     #         # c.splitByEdges()
 
-    labels_per_cluster = declumpKMeans(inFile, clusters, clusters[0].binary, Cluster.pic)
 
     # for c, kmean_labels in zip(clusters, labels_per_cluster):
     #     cleave_points = c.getCuspsKMeans(kmean_labels)
@@ -182,9 +201,10 @@ def makeCells(inFile, clusters):
     #         c.showCusps()
     #     else:
     #         c.transformToCell()
+
+    labels_per_cluster = declumpKMeans(inFile, clusters, clusters[0].binary, Cluster.pic)
     assert len(clusters) == len(labels_per_cluster), 'each cluster must be labeled'
     for c, labels in zip(clusters, labels_per_cluster):
-        #c.transformToCell()
         c.splitConglomerates(labels)
             
     if Cluster.clusters:
@@ -364,7 +384,7 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
-    x = 2
+    x = 1
     if split:
         binarized, clustered = True, True
     elif clustered:
@@ -397,10 +417,10 @@ def parallel(prefix, binarized, clustered, split, overlaid):
         else:
             print(prefix)
             x += 1
-            if x > 6: 
-                break
+            # if x > 16: 
+            #     break
 
-    current_stack.collate_slices()
+    current_stack.collate_slices(nucleusMode)
     overlay(current_stack, prefix, pic_arrays)
 
 import pandas as pd 
@@ -500,27 +520,29 @@ def overlay(current_stack, prefix, pic_arrays):
 
         for c in ss.overlapping_Cells: 
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in white_][i] for i in range(0, 3)]
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in white_][i] for i in range(0, 3)]
 
         for c in ss.roundness_rejected_Cells: #this is a subset of cells (above) so order matters!
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in yellow][i] for i in range(0, 3)]
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in yellow][i] for i in range(0, 3)]
 
         for c in ss.split_Cells: 
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in green][i] for i in range(0, 3)]
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in green][i] for i in range(0, 3)]
 
         for c in ss.contained_Cells: 
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in magenta][i] for i in range(0, 3)]
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in magenta][i] for i in range(0, 3)]
 
 
+        x=1
         for c in ss.finalizedCellSlice.cells:
             outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
+            x+=1
             for b in c.interior:
-                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.9) + [int(c * 0.1) for c in cyan][i] for i in range(0, 3)]
-            for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in cyan][i] for i in range(0, 3)]
+            for b in c.boundary:
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in cyan][i] for i in range(0, 3)]
                 #colored[color_index]
         #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
     outFile.close()
@@ -554,7 +576,7 @@ def one_arg(prefix):
 # with Pool(1) as p:
 #   p.map(one_arg, prefixes[:4])
 
-one_arg('../Cell Size Project/RD1/expt_1/piece1-rfp-normal/piece-')
+one_arg('../Cell Size Project/RD1/expt_1/piece3-rfp-normal/piece-')
 
 
 
