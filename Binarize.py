@@ -149,7 +149,7 @@ class Noise:
         self.binary = binary
         self.detectNoise = self.detectNoise_BIN if binary else self.detectNoise_OG
 
-    def detectNoise_OG(self, i, j, neighbors):
+    def detectNoise_OG(self, i, j, neighbors, largeNoise):
         cut = self.regions.getCompartment(i, j).std() / 3
         num = len(neighbors)
         hits = 0
@@ -158,7 +158,7 @@ class Noise:
                 hits += 1
         return [hits > (num * 0.5), 0]
 
-    def detectNoise_BIN(self, i, j, neighbors):
+    def detectNoise_BIN(self, i, j, neighbors, largeNoise):
         num = len(neighbors)
         hits = 0
         hit_vals = []
@@ -168,18 +168,21 @@ class Noise:
                 hit_vals.append(1)
             else:
                 hit_vals.append(0)
-        return [hits > (num * 0.5), bin_WHITE] if self.image_values[i][j] == 0 else [hits > (num * 0.5), 0]  
+        if largeNoise:
+            return [hits > (num * 0.5), 0] 
+        else: 
+            return [hits > (num * 0.5), bin_WHITE] if self.image_values[i][j] == 0 else [hits > (num * 0.5), 0]  
 
-    def smooth(self):
+    def smooth(self, largeNoise):
         for i in range(len(self.image_values)):
             for j in range(len(self.image_values)):
-                change, value = self.detectNoise(i, j, list(getNeighborIndices(self.image_values, i, j)))
+                change, value = self.detectNoise(i, j, list(getNeighborIndices(self.image_values, i, j)), largeNoise)
                 if change:
                     self.image_values[i][j] = value
 
-    def reduce(self):
+    def reduce(self, largeNoise=False):
         for _ in range(self.iterations):
-            self.smooth()
+            self.smooth(largeNoise)
 
 
 def getNeighborIndices(image_values, i, j):

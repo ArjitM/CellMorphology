@@ -86,10 +86,10 @@ def makeBinary(inFile, pic_array, pic):
 
     if not nucleusMode:
         out_array = skimage.util.invert(out_array) #inversion required for soma stain
-        out_array = growCellBoundaries(pic_array, out_array)
-        out_array = pic_array < threshold_local(pic_array, block_size=35).astype(pic_array.dtype.type) 
-        out_array = out_array.astype(pic_array.dtype.type)
-        out_array = np.array([ [WHITE if p else 0 for p in row] for row in out_array], dtype = pic_array.dtype.type)
+        # out_array = growCellBoundaries(pic_array, out_array)
+        # out_array = pic_array < threshold_local(pic_array, block_size=35).astype(pic_array.dtype.type) 
+        # out_array = out_array.astype(pic_array.dtype.type)
+        # out_array = np.array([ [WHITE if p else 0 for p in row] for row in out_array], dtype = pic_array.dtype.type)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
 
@@ -104,7 +104,8 @@ def makeBinary(inFile, pic_array, pic):
     #skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
 
     noise_handler = Noise(out_array, iterations=3, binary=True)
-    noise_handler.reduce() #reduce salt and pepper noise incorrectly labeled as edges 
+    noise_handler.reduce(largeNoise=True) #reduce salt and pepper noise incorrectly labeled as edges 
+    noise_handler.reduce(largeNoise=False)
 
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     print("***made binary")
@@ -112,7 +113,7 @@ def makeBinary(inFile, pic_array, pic):
     labeled, num_objects = scipy.ndimage.label(out_array)
     #print("Objects detected", num_objects)
     #print(labeled)
-    labeled = remove_largeNoise(labeled, num_objects)
+    #labeled = remove_largeNoise(labeled, num_objects)
     visualize_labeled(labeled, inFile)
 
     outFile = open(inFile.replace('.tif', '_labeled.pkl'), 'wb')
