@@ -48,7 +48,7 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = [] #VERY IMPORTANT TO RESET
     k=0
     for c, p in zip(clusterBounds, pivots):
-        if len(clusterBounds) > 30:
+        if len(c) > 30:
             Cluster(binary, c, stack_slice, p)
         k += 1
 
@@ -418,7 +418,7 @@ def parallel(prefix, binarized, clustered, split, overlaid):
         else:
             print(prefix)
             x += 1
-            # if x > 16: 
+            # if x > 11: 
             #     break
 
     current_stack.collate_slices(nucleusMode)
@@ -577,7 +577,7 @@ def one_arg(prefix):
 # with Pool(1) as p:
 #   p.map(one_arg, prefixes[:4])
 
-one_arg('../Cell Size Project/RD1/expt_1/piece3-rfp-normal/piece-')
+one_arg('../Cell Size Project/WT/expt_2/piece3-gfp-normal/piece-')
 
 
 

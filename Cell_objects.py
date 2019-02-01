@@ -84,12 +84,11 @@ class Cluster:
         self.center = (int(np.mean([p[0] for p in self.boundary])), int(np.mean([p[1] for p in self.boundary])))
         self.pivots = createPivots(pivots, binary) if pivots is not None else None
         if self.pivots and len(self.pivots) > 6:
-            return
-        self.constriction_points = []
-        self.internalEdges = internalEdges
-        self.stack_slice = stack_slice
-        #self.object_number = None
-        self.internalEdges = [] if (internalEdges is None) else internalEdges #using [] as default argument is problematic; old is appended to default
+            self.constriction_points = []
+            self.internalEdges = internalEdges
+            self.stack_slice = stack_slice
+            #self.object_number = None
+            self.internalEdges = [] if (internalEdges is None) else internalEdges #using [] as default argument is problematic; old is appended to default
         #self.object_number = Cluster.segmented[self.boundary[0][0], self.boundary[0][1]] #initialize object number from segmented array
 
         if not isinstance(self, Cell):
@@ -540,11 +539,9 @@ class Cell(Cluster):
 
         self.interior = interior
         self.boundary = self.getBoundary(binary, interior)
-        if len(self.boundary) < 25:
-            return
-        #print('cell area: ', len(self.interior), len(self.boundary))
-        super().__init__(binary, self.boundary, stack_slice, internalEdges=internalEdges)
-        self.stack_slice.addCell(self)
+        if len(self.boundary) > 25:
+            super().__init__(binary, self.boundary, stack_slice, internalEdges=internalEdges)
+            self.stack_slice.addCell(self)
         #stack_slice.addCell(self)
         #self.roundness = 0
         # if not self.internalEdges:
