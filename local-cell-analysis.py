@@ -16,22 +16,30 @@ import pickle
 import logging
 import traceback
 import os
-import matlab.engine
+#import matlab.engine
 from operator import add
 import scipy.ndimage
+import scipy.io as spio
+
 
 def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = []
-    eng = matlab.engine.start_matlab()
-    img = eng.imread(inFile.replace('.tif', '_BinaryPivots.tif'))
-    #boundaries = eng.bwboundaries(img)
-    allBounds = eng.moore_neighbor(img)
+    # eng = matlab.engine.start_matlab()
+    # img = eng.imread(inFile.replace('.tif', '_BinaryPivots.tif'))
+    # #boundaries = eng.bwboundaries(img)
+    # allBounds = eng.moore_neighbor(img)
     #print(allBounds)
+
+    subprocess.run("matlab -nosplash -nodesktop -r \"moore_neighbor(\'{0}\'); quit\"".format(inFile.replace('.tif', '_BinaryPivots.tif')), shell=True)
+    mat = spio.loadmat(inFile.replace('.tif','_bounds.mat'), squeeze_me=True)
+    allBounds = mat['all']
 
     clusterBounds = []
     pivots = []
     for boundaries in allBounds:
         k = 0
+        if type(boundaries) != np.object:
+            boundaries = [boundaries]
         for bound in boundaries:
             if k==0:
                 clusterBounds.append([tuple( map( add, (np.array(bp).astype(np.uint16)), (-1, -1) ) ) for bp in bound]) #convert from matlab double
@@ -41,7 +49,7 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
                 pivots[-1].append([tuple( map( add, (np.array(bp).astype(np.uint16)), (-1, -1) ) ) for bp in bound])
             k+=1
 
-    eng.quit()
+    #eng.quit()
     
 
     boundary = [item for sublist in clusterBounds for item in sublist]
@@ -362,9 +370,9 @@ def visualize_Clusters(out_array, inFile, clusters, num=None):
 
 locations = [
 '../vit A/vit_A_free/',
-'../Cell Size Project/WT/',
-'../Cell Size Project/RD1-P2X7KO/',
-'../Cell Size Project/RD1/'
+'../Cell-Size-Project/WT/',
+'../Cell-Size-Project/RD1-P2X7KO/',
+'../Cell-Size-Project/RD1/'
 ]
 
 prefixes = []
@@ -385,7 +393,7 @@ for loc in locations:
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
-    x = 1
+    x = 10
     if split:
         binarized, clustered = True, True
     elif clustered:
@@ -418,8 +426,8 @@ def parallel(prefix, binarized, clustered, split, overlaid):
         else:
             print(prefix)
             x += 1
-            # if x > 11: 
-            #     break
+            if x > 11: 
+                break
 
     current_stack.collate_slices(nucleusMode)
     overlay(current_stack, prefix, pic_arrays)
@@ -577,7 +585,7 @@ def one_arg(prefix):
 # with Pool(1) as p:
 #   p.map(one_arg, prefixes[:4])
 
-one_arg('../Cell Size Project/WT/expt_2/piece3-gfp-normal/piece-')
+one_arg('../Cell-Size-Project/WT/expt_2/piece3-gfp-normal/piece-')
 
 
 

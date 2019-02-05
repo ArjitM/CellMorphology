@@ -1,6 +1,7 @@
 function [all] = moore_neighbor(img)
-
-[B,L,N,A] = bwboundaries(img);
+img
+pic = imread(img);
+[B,L,N,A] = bwboundaries(pic);
 % figure;
 % imshow(img);
 % hold on;
@@ -22,5 +23,6 @@ for k = 1:N
             end
         end
         all{end+1} = boundary; 
-    end
+end
+save(replace(img, '_BinaryPivots.tif', '_bounds.mat'), 'all');
 end
