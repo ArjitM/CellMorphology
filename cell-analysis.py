@@ -400,7 +400,7 @@ def parallel(prefix, binarized, clustered, split, overlaid):
     while True:
         try:
             stack_slice = Stack_slice(x, cells=[])
-            inFile = prefix + str(x).rjust(4, '0') + '.tif'
+            inFile = prefix + 'piece-' + str(x).rjust(4, '0') + '.tif'
 
             pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split, overlay))
 
