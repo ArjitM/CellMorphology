@@ -275,12 +275,19 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     global virus_inject
     virus_inject = 'RFP' in inFile
 
+    global WHITE
+
     if split: #breakpoint to test stack collation
         try:
             loadCells(inFile, stack_slice)
         except (FileNotFoundError, EOFError):
             clustered = True
         else:
+            Cluster.pic = pic_array
+            WHITE = skimage.dtype_limits(pic_array, True)[1]
+            Binarize.WHITE = WHITE
+            Binarize.bin_WHITE = WHITE
+            Cell_objects.WHITE = WHITE
             return pic_array
 
     if clustered:
@@ -292,7 +299,6 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
             binarized = True
             #return complete_protocol()
         else:
-            global WHITE
             WHITE = skimage.dtype_limits(pic_array, True)[1]
             Binarize.WHITE = WHITE
             Binarize.bin_WHITE = WHITE
@@ -348,19 +354,17 @@ def getImageDirectories(locations):
 
     def recursiveDirectories(loc):
         nonlocal prefixes
-        try:
-            for d in next(os.walk(loc))[1]:
-                if 'normal' in d or '_RFP' in d:
-                    prefixes.append(loc + d + '/')
-                    print(loc + d + '/')
-                else:
-                    recursiveDirectories(loc + d + '/')
-        except StopIteration:
-            pass
+        for d in next(os.walk(loc))[1]:
+            if 'normal' in d or '_RFP' in d:
+                prefixes.append(loc + d + '/')
+                print(loc + d + '/')
+            else:
+                recursiveDirectories(loc + d + '/')
 
     for loc in locations:
         recursiveDirectories(loc)
     return prefixes
+
 
 
 def parallel(prefix, binarized, clustered, split, overlaid):
@@ -376,13 +380,13 @@ def parallel(prefix, binarized, clustered, split, overlaid):
     while True:
         try:
             stack_slice = Stack_slice(x, cells=[])
-            inFile = prefix + str(x).rjust(4, '0') + '.tif'
+            inFile = prefix + 'piece-' + str(x).rjust(4, '0') + '.tif'
 
             pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split, overlay))
 
-            stack_slice.pruneCells(0.4)
-            #print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
-            #current_stack.addSlice(stack_slice)
+            stack_slice.pruneCells(0.2)
+            print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
+            current_stack.addSlice(stack_slice)
 
         except IOError:
             if x != 1:
@@ -397,8 +401,9 @@ def parallel(prefix, binarized, clustered, split, overlaid):
             x += 1
 
 
-    #current_stack.collate_slices(nucleusMode)
-    #overlay(current_stack, prefix, pic_arrays)
+    if clustered or split:
+        current_stack.collate_slices(nucleusMode)
+        overlay(current_stack, prefix, pic_arrays)
 
 
 def groupPointsBoundary(boundary, num_groups=2):
@@ -525,7 +530,9 @@ def overlay(current_stack, prefix, pic_arrays):
         #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
     outFile.close()
     largest_3d = np.array(largest_3d)
+    print('WHY')
     skimage.external.tifffile.imsave('{0}largest3D.tif'.format(prefix), largest_3d)
+
 
 
 
@@ -545,20 +552,24 @@ def one_arg(prefix):
         print("Error occured in processing {0}: {1}".format(prefix, e))
         logging.error(traceback.format_exc())
 
-# cpus = multiprocessing.cpu_count()
-#with Pool(4) as p:
-#   p.map(one_arg, prefixes)
-
-one_arg('../YFP-RA viruses imaging for morphology/3rd set of experiments/rd1-403/Mouse 1/LEFT EYE/cell-12-RFP/piece-')
-
 locations = [
-'../vit A/vit_A_free/',
-'../Cell-Size-Project/WT/',
-'../Cell-Size-Project/RD1-P2X7KO/',
-'../Cell-Size-Project/RD1/',
-'../VAF_new_cohort/'
+# '../vit A/vit_A_free/',
+# '../Cell-Size-Project/WT/',
+# '../Cell-Size-Project/RD1-P2X7KO/',
+# '../Cell-Size-Project/RD1/',
+# '../VAF_new_cohort/'
+'../YFP-RA-viruses/'
 ]
+prefixes = getImageDirectories(locations)
 
+#cpus = multiprocessing.cpu_count()
+with Pool(2) as p:
+  p.map(one_arg, prefixes)
 
+#one_arg('../YFP-RA-viruses/3rd_set/rd1-403/Mouse-1/LEFT-EYE/cell-12-RFP/piece-')
+
+##Main 'local' object incompatible with pickle, use script without main
+# if __name__ == '__main__':
+#     main()
 
 

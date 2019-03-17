@@ -7,7 +7,6 @@ import centrosome.cpmorphology
 import centrosome.outline
 import centrosome.propagate
 import centrosome.threshold
-import numpy
 import scipy.ndimage
 import scipy.sparse
 import skimage.morphology

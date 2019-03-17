@@ -11,6 +11,7 @@ import scipy.ndimage
 from scipy.signal import argrelextrema
 from itertools import chain
 import copy
+import functools
 
 global WHITE
 WHITE = None
@@ -248,8 +249,6 @@ class Cluster:
             ##Identified minima should be in the vicinity of cusps identified by gradient
             ###Merge pivots in close vicinity ??
         #return list(chain.from_iterable(minima_sequences))
-
-
 
     def propagateInternalBoundaries(self, cleave_points=None):
       
@@ -513,6 +512,7 @@ class Cluster:
         return hits >= k // 3 and self.pointWithin(other_cell.center), hits >= k // 6
 
     @property
+    @functools.lru_cache()
     def area(self):
         self.interior = []
         self.internalBoundaryHits = 0
@@ -540,16 +540,6 @@ class Cell(Cluster):
         if len(self.boundary) > 25:
             super().__init__(binary, self.boundary, stack_slice, internalEdges=internalEdges)
             self.stack_slice.addCell(self)
-        #stack_slice.addCell(self)
-        #self.roundness = 0
-        # if not self.internalEdges:
-        #     self.internalBoundaryHits = 0 #if cell is in "controversial" lots of boundaries region, it is killed
-        #     #self.interior = [] #this is updated by the area function
-        #     #_ = self.area #invoke property to update interior
-        #     #self.center = scipy.ndimage.measurements.center_of_mass(self.interior + self.boundary)
-        #     if self.internalBoundaryHits > self.area / 3:
-        #         self.kill()
-            # self.colored = skimage.color.grey2rgb(self.binary)
 
     def getBoundary(self, binary, interior):
         boundary = []
@@ -568,36 +558,10 @@ class Cell(Cluster):
 
     def pointWithin(self, point):
         return point in self.interior
-        '''
-        y = point[0]
-        x = point[1]
-        y_bounds = [p for p in self.boundary if p[1] == x]
-        x_bounds = [p for p in self.boundary if p[0] == y]
 
-        if y_bounds == [] or x_bounds == []:
-            return False
-        if point in y_bounds or point in x_bounds:
-            return True
-        y_bounds.sort(key = lambda b: b[0])
-        x_bounds.sort(key = lambda b: b[1])
-        
-        if point[0] < y_bounds[0][0] or point[0] > y_bounds[-1][0] or point[1] < x_bounds[0][1] or point[1] > x_bounds[-1][1]:
-            return False
-
-        y_pairs = self.get_var_pairs(y_bounds, 0)
-        x_pairs = self.get_var_pairs(x_bounds, 1)
-
-        def within_var_bounds(var_pairs, point, index):
-            #index 0 for y, 1 for x
-            for var_pair in var_pairs:
-                if point[index] >= var_pair[0][index] and point[index] <= var_pair[1][index]:
-                    return True
-            return False
-
-        return within_var_bounds(y_pairs, point, 0) and within_var_bounds(x_pairs, point, 1)
-        '''
 
     @property
+    @functools.lru_cache()
     def roundness(self):
         circum = len(self.boundary)
         pp_score = 4 * math.pi * self.area / (circum**2)
@@ -610,13 +574,20 @@ class Cell(Cluster):
 
         # normalized_distances = list(np.sqrt([ ((distance(b, self.center) - ideal)/ideal)**2 for b in self.boundary]))
         #return 1 - np.mean(normalized_distances)
-
     @property
     def area(self):
         if len(self.interior) > 0:
             return len(self.interior)
         return Cluster.area(self)
     
+    @property
+    @functools.lru_cache()
+    def isLoaded(self):
+        x = 0
+        for (i,j) in self.interior:
+            if Cluster.pic[i,j] > 0.8 * WHITE:
+                x += 1
+        return x > 0.8 * len(self.interior)
 
     def kill(self):
         if self in self.stack_slice.cells:

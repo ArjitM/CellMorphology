@@ -332,4 +332,24 @@ def growCellBoundaries(pic_array, out_array):
 
     return out_array
 
+def getLoadedPixels(pic_array, out_array):
+    #Use only with Soma stain, NOT nucleus; assumes dark foreground
+    out_rgb = skimage.color.gray2rgb(out_array)
+    fg_vals = []
+    for i in range(len(pic_array)):
+        for j in range(len(pic_array[0])):
+            if out_array[i,j] != 0:
+                fg_vals.append(pic_array[i,j])
+    fg_vals.sort()
+    fg_cutOff = fg_vals[int(0.6 * len(fg_vals))] #top 40% pixel values in fg
+
+    for i in range(len(pic_array)):
+        for j in range(len(pic_array[0])):
+            if out_array[i,j] == WHITE and pic_array[i,j] >= fg_cutOff:
+                out_rgb[i,j] = [pic_array[i,j], 0, 0]
+            elif out_array[i,j] == WHITE:
+                out_rgb[i,j] = [0, pic_array[i,j], 0]
+
+    return out_rgb
+
 

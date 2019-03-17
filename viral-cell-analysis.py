@@ -54,6 +54,9 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     #eng.quit()
     
 
+    if not clusterBounds:
+        return None, None
+
     boundary = [item for sublist in clusterBounds for item in sublist]
     Cluster.clusters = [] #VERY IMPORTANT TO RESET
     k=0
@@ -96,15 +99,8 @@ def makeBinary(inFile, pic_array, pic):
 
     if not nucleusMode and not virus_inject:
         out_array = skimage.util.invert(out_array) #inversion required for soma stain
-        # out_array = growCellBoundaries(pic_array, out_array)
-        # out_array = pic_array < threshold_local(pic_array, block_size=35).astype(pic_array.dtype.type) 
-        # out_array = out_array.astype(pic_array.dtype.type)
-        # out_array = np.array([ [WHITE if p else 0 for p in row] for row in out_array], dtype = pic_array.dtype.type)
-
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
 
-    #regions.setNoiseCompartments(out_array, 0.95)
-    #regions.reviseNoiseCompartments()
     for i in range(len(out_array)):
         for j in range(len(out_array[0])):
             if regions.getCompartment(i, j).noise_compartment:
@@ -121,9 +117,6 @@ def makeBinary(inFile, pic_array, pic):
     print("***made binary")
 
     labeled, num_objects = scipy.ndimage.label(out_array)
-    #print("Objects detected", num_objects)
-    #print(labeled)
-    #labeled = remove_largeNoise(labeled, num_objects)
     visualize_labeled(labeled, inFile)
 
     outFile = open(inFile.replace('.tif', '_labeled.pkl'), 'wb')
@@ -275,12 +268,19 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     global virus_inject
     virus_inject = 'RFP' in inFile
 
+    global WHITE
+
     if split: #breakpoint to test stack collation
         try:
             loadCells(inFile, stack_slice)
         except (FileNotFoundError, EOFError):
             clustered = True
         else:
+            Cluster.pic = pic_array
+            WHITE = skimage.dtype_limits(pic_array, True)[1]
+            Binarize.WHITE = WHITE
+            Binarize.bin_WHITE = WHITE
+            Cell_objects.WHITE = WHITE
             return pic_array
 
     if clustered:
@@ -292,7 +292,6 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
             binarized = True
             #return complete_protocol()
         else:
-            global WHITE
             WHITE = skimage.dtype_limits(pic_array, True)[1]
             Binarize.WHITE = WHITE
             Binarize.bin_WHITE = WHITE
@@ -308,13 +307,13 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     bin_array, segmented = getBinary(inFile, pic_array, binarized)
     
     Cluster.pic = pic_array
-    # Cluster.segmented = segmented
-    # clusters, boundary = makeClusters_Matlab(bin_array, inFile, stack_slice)
-    # superimposeBoundary(inFile, pic_array)#, boundary=boundary)
-    # #visualize_Clusters(pic_array, inFile, Cluster.clusters)
-    # saveClusters(inFile, clusters)
-    # makeCells(inFile, clusters) #saves edged picture
-    # saveCells(inFile, stack_slice)
+    Cluster.segmented = segmented
+    clusters, boundary = makeClusters_Matlab(bin_array, inFile, stack_slice)
+    superimposeBoundary(inFile, pic_array)#, boundary=boundary)
+    #visualize_Clusters(pic_array, inFile, Cluster.clusters)
+    saveClusters(inFile, clusters)
+    makeCells(inFile, clusters) #saves edged picture
+    saveCells(inFile, stack_slice)
     return pic_array
 
 
@@ -363,6 +362,7 @@ def getImageDirectories(locations):
     return prefixes
 
 
+
 def parallel(prefix, binarized, clustered, split, overlaid):
 
     current_stack = Stack()
@@ -376,13 +376,17 @@ def parallel(prefix, binarized, clustered, split, overlaid):
     while True:
         try:
             stack_slice = Stack_slice(x, cells=[])
-            inFile = prefix + str(x).rjust(4, '0') + '.tif'
+            inFile = prefix + 'piece-' + str(x).rjust(4, '0') + '.tif'
+            # try:
+            #     subprocess.run('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")), shell=True)
+            # except FileNotFoundError:
+            #     pass 
 
             pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split, overlay))
 
-            stack_slice.pruneCells(0.4)
-            #print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
-            #current_stack.addSlice(stack_slice)
+            stack_slice.pruneCells(0.2)
+            print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
+            current_stack.addSlice(stack_slice)
 
         except IOError:
             if x != 1:
@@ -397,8 +401,8 @@ def parallel(prefix, binarized, clustered, split, overlaid):
             x += 1
 
 
-    #current_stack.collate_slices(nucleusMode)
-    #overlay(current_stack, prefix, pic_arrays)
+    current_stack.collate_slices(nucleusMode)
+    overlay(current_stack, prefix, pic_arrays)
 
 
 def groupPointsBoundary(boundary, num_groups=2):
@@ -510,7 +514,7 @@ def overlay(current_stack, prefix, pic_arrays):
                 largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in magenta][i] for i in range(0, 3)]
 
         for c in ss.finalizedCellSlice.cells:
-            outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}, Viral status:, {4}\n".format(x, c.stack_slice.number, c.area, c.roundness, c.isLoaded))
+            outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}, Viral status:, {4}\n".format(x, c.stack_slice.number, c.area * (212/512)**2, c.roundness, c.isLoaded))
             x+=1
             for b in c.interior:
                 largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in cyan][i] for i in range(0, 3)]
@@ -525,7 +529,9 @@ def overlay(current_stack, prefix, pic_arrays):
         #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
     outFile.close()
     largest_3d = np.array(largest_3d)
+    print('WHY')
     skimage.external.tifffile.imsave('{0}largest3D.tif'.format(prefix), largest_3d)
+
 
 
 
@@ -545,20 +551,22 @@ def one_arg(prefix):
         print("Error occured in processing {0}: {1}".format(prefix, e))
         logging.error(traceback.format_exc())
 
-# cpus = multiprocessing.cpu_count()
-#with Pool(4) as p:
-#   p.map(one_arg, prefixes)
-
-one_arg('../YFP-RA viruses imaging for morphology/3rd set of experiments/rd1-403/Mouse 1/LEFT EYE/cell-12-RFP/piece-')
-
 locations = [
-'../vit A/vit_A_free/',
-'../Cell-Size-Project/WT/',
-'../Cell-Size-Project/RD1-P2X7KO/',
-'../Cell-Size-Project/RD1/',
-'../VAF_new_cohort/'
+# '../vit A/vit_A_free/',
+# '../Cell-Size-Project/WT/',
+# '../Cell-Size-Project/RD1-P2X7KO/',
+# '../Cell-Size-Project/RD1/',
+# '../VAF_new_cohort/'
+'/global/scratch/arjitmisra/YFP-RA-viruses/'
 ]
+prefixes = getImageDirectories(locations)
 
+cpus = multiprocessing.cpu_count()
+with Pool(cpus * 5) as p:
+  p.map(one_arg, prefixes)
 
+##Main 'local' object incompatible with pickle, use script without main
+# if __name__ == '__main__':
+#     main()
 
 

@@ -12,6 +12,7 @@ class Stack_slice:
         self.contained_Cells = []
         self.split_Cells = []
         self.overlapping_Cells = []
+        self.size_rejected_Cells =[]
 
     def addCell(self, cell):
         if isinstance(cell, Cell):
@@ -23,8 +24,15 @@ class Stack_slice:
         self.cells.remove(cell)
 
     def pruneCells(self, roundness_thresh=0.75):
-        self.cells = [c for c in self.cells if c.roundness > roundness_thresh]
-        self.cells = [c for c in self.cells if c.area > 50 and c.area < 500]
+        
+        for c in self.cells:
+            if c.roundness < roundness_thresh:
+                self.roundness_rejected_Cells.append(c)
+                self.cells.remove(c)
+                continue
+            if c.area < 55: #corresponds to <10 microns squared. RGCs are 20-30 um^2
+                self.size_rejected_Cells.append(c)
+                self.cells.remove(c)
 
 class Stack_slice_largest(Stack_slice):
 
@@ -48,13 +56,6 @@ class Stack:
 
             for cell in stack_slice.cells:
 
-                if len(cell.boundary) < 20:
-                    continue
-
-                if cell.roundness < 0.4:
-                    cell.stack_slice.roundness_rejected_Cells.append(cell)
-                    continue
-
                 hits = 0
                 large_replace = []
 
@@ -64,10 +65,6 @@ class Stack:
                         hits += 1
                     if hits > 1:
                         break
-
-                # if hits > 1: # or cell.internalEdges: #limit reached
-                #     cell.stack_slice.split_Cells.append(cell)
-                #     continue
 
                 if hits == 1:
                     self.large_Cells.remove(large_replace)
