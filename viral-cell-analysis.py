@@ -61,8 +61,8 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = [] #VERY IMPORTANT TO RESET
     k=0
     for c, p in zip(clusterBounds, pivots):
-        if len(c) > 10:
-            Cluster(binary, c, stack_slice, p)
+        #if len(c) > 10:
+        Cluster(binary, c, stack_slice, p)
         k += 1
 
     print("NUMBER OF CLUSTERS IS: ", len(Cluster.clusters))
@@ -377,10 +377,6 @@ def parallel(prefix, binarized, clustered, split, overlaid):
         try:
             stack_slice = Stack_slice(x, cells=[])
             inFile = prefix + 'piece-' + str(x).rjust(4, '0') + '.tif'
-            # try:
-            #     subprocess.run('convert {0} {1}'.format(inFile.replace(' ', "\\ ").replace('.tif', '.jpg'), inFile.replace(' ', "\\ ")), shell=True)
-            # except FileNotFoundError:
-            #     pass 
 
             pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split, overlay))
 
@@ -475,7 +471,7 @@ def overlay(current_stack, prefix, pic_arrays):
     colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
     cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]; yellow = [colorLimit, colorLimit, 0]
-    green = [0, 0, colorLimit]; white_ = [colorLimit, colorLimit, colorLimit]; red = [colorLimit, 0, 0]
+    green = [0, colorLimit, 0]; white_ = [colorLimit, colorLimit, colorLimit]; red = [colorLimit, 0, 0]
 
     for c in current_stack.largest_Cells:
         x+=1
@@ -526,7 +522,7 @@ def overlay(current_stack, prefix, pic_arrays):
                 for b in c.boundary:
                     largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in green][i] for i in range(0, 3)]
                 #colored[color_index]
-        #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
+        skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
     outFile.close()
     largest_3d = np.array(largest_3d)
     print('WHY')
@@ -557,16 +553,15 @@ locations = [
 # '../Cell-Size-Project/RD1-P2X7KO/',
 # '../Cell-Size-Project/RD1/',
 # '../VAF_new_cohort/'
-'/global/scratch/arjitmisra/YFP-RA-viruses/'
+#'/global/scratch/arjitmisra/YFP-RA-viruses/'
+'../YFP-RA-viruses/'
 ]
+
 prefixes = getImageDirectories(locations)
 
-cpus = multiprocessing.cpu_count()
-with Pool(cpus * 5) as p:
-  p.map(one_arg, prefixes)
+# cpus = multiprocessing.cpu_count()
+# with Pool(cpus * 5) as p:
+#   p.map(one_arg, prefixes)
 
-##Main 'local' object incompatible with pickle, use script without main
-# if __name__ == '__main__':
-#     main()
-
+one_arg(prefixes[0])
 

@@ -58,8 +58,8 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = [] #VERY IMPORTANT TO RESET
     k=0
     for c, p in zip(clusterBounds, pivots):
-        if len(c) > 10:
-            Cluster(binary, c, stack_slice, p)
+        #if len(c) > 10:
+        Cluster(binary, c, stack_slice, p)
         k += 1
 
     print("NUMBER OF CLUSTERS IS: ", len(Cluster.clusters))
@@ -476,7 +476,7 @@ def overlay(current_stack, prefix, pic_arrays):
     colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
     cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]; yellow = [colorLimit, colorLimit, 0]
-    green = [0, 0, colorLimit]; white_ = [colorLimit, colorLimit, colorLimit]; red = [colorLimit, 0, 0]
+    green = [0,colorLimit, 0]; white_ = [colorLimit, colorLimit, colorLimit]; red = [colorLimit, 0, 0]
 
     for c in current_stack.largest_Cells:
         x+=1

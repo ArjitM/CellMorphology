@@ -9,7 +9,7 @@ def makeClusters_Matlab(inFile='/Users/arjitmisra/Documents/Kramer_Lab/Cell-Size
 
     #allBounds = eng.moore_neighbor(img)
     mat = spio.loadmat(inFile.replace('.tif','_bounds.mat'), squeeze_me=True)
-    bounds = mat['all']
-    print(bounds)
+    allBounds = mat['all']
+
 
 makeClusters_Matlab()
