@@ -31,46 +31,40 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     # #boundaries = eng.bwboundaries(img)
     # allBounds = eng.moore_neighbor(img)
     #print(allBounds)
-
     subprocess.run("matlab -nosplash -nodesktop -r \"moore_neighbor(\'{0}\'); quit\"".format(inFile.replace('.tif', '_BinaryPivots.tif')), shell=True)
     mat = spio.loadmat(inFile.replace('.tif','_bounds.mat'), squeeze_me=True)
     allBounds = mat['all']
-
     clusterBounds = []
     pivots = []
     for boundaries in allBounds:
         k = 0
         if type(boundaries) != np.object:
             boundaries = [boundaries]
+        #print('$$$$$$', boundaries)
         for bound in boundaries:
-            if k==0:
-                clusterBounds.append([tuple( map( add, (np.array(bp).astype(np.uint16)), (-1, -1) ) ) for bp in bound]) #convert from matlab double
-                #matlab array indexing starts at 1!
-                pivots.append([])
+            #print('*****')
+            #print(bound)
+            pivots.append([])
+            #print(bound[0][0], type(bound[0][0]), type(bound[0][0]) == np.ndarray)
+            if type(bound[0][0]) != np.ndarray:
+                clusterBounds.append([tuple( map( add, bp, (-1, -1) ) ) for bp in bound]) #convert from matlab double
             else:
-                pivots[-1].append([tuple( map( add, (np.array(bp).astype(np.uint16)), (-1, -1) ) ) for bp in bound])
-            k+=1
-
-    #eng.quit()
-    
-
+                clusterBounds.append([tuple( map( add, bp, (-1, -1) ) ) for bp in bound[0]])
+                for k in range(1, len(bound)):
+                    pivots[-1].append([tuple( map( add, bp, (-1, -1) ) ) for bp in bound[k]]) #np.array(bp).astype(np.uint16)
     if not clusterBounds:
         return None, None
-
-    boundary = [item for sublist in clusterBounds for item in sublist]
+    boundary = [item for sublist in clusterBounds for item in sublist] + [item for sublist in pivots for item in sublist]
     Cluster.clusters = [] #VERY IMPORTANT TO RESET
     k=0
     for c, p in zip(clusterBounds, pivots):
-        #if len(c) > 10:
         Cluster(binary, c, stack_slice, p)
         k += 1
-
     print("NUMBER OF CLUSTERS IS: ", len(Cluster.clusters))
     visualize_Clusters(binary, inFile, Cluster.clusters)
     # visualPivots = showPivots(copy.deepcopy(binary), Cluster.clusters)
     # skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotPoints.tif'), visualPivots)
     # skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryPivotCheck.tif'), binary)
-
     return Cluster.clusters, boundary
 
 def makeBinary(inFile, pic_array, pic):
