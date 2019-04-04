@@ -34,7 +34,7 @@ class Compartment:
     def std(self):
         if self.values == []:
             print(self.coordinates)
-            return 5
+            return 0
         return np.std(self.values, dtype=np.float64)
 
     def mean(self):

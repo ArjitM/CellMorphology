@@ -267,6 +267,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     if split: #breakpoint to test stack collation
         try:
             loadCells(inFile, stack_slice)
+            
         except (FileNotFoundError, EOFError):
             clustered = True
         else:
@@ -542,20 +543,13 @@ def one_arg(prefix):
         logging.error(traceback.format_exc())
 
 locations = [
-# '../vit A/vit_A_free/',
-# '../Cell-Size-Project/WT/',
-# '../Cell-Size-Project/RD1-P2X7KO/',
-# '../Cell-Size-Project/RD1/',
-# '../VAF_new_cohort/'
-#'/global/scratch/arjitmisra/YFP-RA-viruses/'
-'../YFP-RA-viruses/'
+'/global/scratch/arjitmisra/YFP-RA-viruses/'
+#'../YFP-RA-viruses/'
 ]
 
 prefixes = getImageDirectories(locations)
 
-# cpus = multiprocessing.cpu_count()
-# with Pool(cpus * 5) as p:
-#   p.map(one_arg, prefixes)
-
-one_arg(prefixes[0])
+cpus = multiprocessing.cpu_count()
+with Pool(cpus * 5) as p:
+  p.map(one_arg, prefixes)
 

@@ -288,14 +288,20 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
         pic_array = pic.asarray()
 
     global nucleusMode
+    global WHITE
     nucleusMode = '-rfp-' in inFile or 'ucleus' in inFile
 
     if split: #breakpoint to test stack collation
         try:
             loadCells(inFile, stack_slice)
+            Cluster.pic = pic_array
         except (FileNotFoundError, EOFError):
             clustered = True
         else:
+            WHITE = skimage.dtype_limits(pic_array, True)[1]
+            Binarize.WHITE = WHITE
+            Binarize.bin_WHITE = WHITE
+            Cell_objects.WHITE = WHITE
             return pic_array
 
     if clustered:
@@ -307,7 +313,6 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
             binarized = True
             #return complete_protocol()
         else:
-            global WHITE
             WHITE = skimage.dtype_limits(pic_array, True)[1]
             Binarize.WHITE = WHITE
             Binarize.bin_WHITE = WHITE

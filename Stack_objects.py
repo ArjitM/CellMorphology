@@ -1,5 +1,5 @@
 from Cell_objects import *
-
+from Binarize import *
 
 class Stack_slice:
 
