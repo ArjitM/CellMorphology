@@ -1,5 +1,56 @@
 from Cell_objects import *
-from Binarize import *
+
+class GridSquare:
+
+    def __init__(self, left, right, top, bottom):
+        self.coordinates = {'left': left, 'right': right, 'top': top, 'bottom': bottom}
+        self._cells = []
+        self.neighbors = []
+        self.large_Cells = []
+
+    def addCell(self, cell):
+        self._cells.append(cell)
+
+
+class Grid:
+    def __init__(self, xmax, ymax, numSquares):
+        print('only once')
+        self.compartments = []
+        i_max, j_max, ki, kj = ymax, xmax, 0, 0
+        while ki < i_max:
+            while kj < j_max:
+                self.compartments.append(GridSquare(kj, min(kj+numSquares, j_max), ki, min(ki+numSquares, i_max)))
+                kj += numSquares
+            kj = 0
+            ki+= numSquares
+        self.numSquares = numSquares
+        self.i_max = i_max
+        self.j_max = j_max
+        for c in self.compartments:
+            self.setNeighborGridSquares(c)
+        print(len(self.compartments))
+
+    def getGridSquare(self, p):
+        i, j = p
+        index = (j // self.numSquares) + (i // self.numSquares) * (self.j_max // self.numSquares)
+        assert i >= 0 and j>= 0 and index < len(self.compartments)
+        return self.compartments[index]
+
+    def setNeighborGridSquares(self, compartment):
+        neighbors = []
+        neighbor_points = [(compartment.coordinates['top'], compartment.coordinates['left'] - 1),
+        (compartment.coordinates['top'] - 1, compartment.coordinates['left'] - 1),
+        (compartment.coordinates['top'] - 1, compartment.coordinates['left']),
+        (compartment.coordinates['bottom'], compartment.coordinates['right'] + 1),
+        (compartment.coordinates['bottom'] + 1, compartment.coordinates['right'] + 1),
+        (compartment.coordinates['bottom'] + 1, compartment.coordinates['right'])]
+        for npoint in neighbor_points:
+            try:
+                neighbors.append(self.getGridSquare(npoint))
+            except AssertionError:
+                pass
+        compartment.neighbors = neighbors
+
 
 class Stack_slice:
 
@@ -43,38 +94,42 @@ class Stack_slice_largest(Stack_slice):
 
 class Stack:
 
-    def __init__(self, stack_slices=[]):
+    def __init__(self, xmax, ymax, numSquares, stack_slices=[]):
         self.stack_slices = stack_slices
         self.large_Cells = []
-        self.largest_Cells = []
+        self.grid = Grid(xmax, ymax, numSquares)
 
     def addSlice(self, stack_slice):
         self.stack_slices.append(stack_slice)
 
     def collate_slices(self, nucleusMode):
         for stack_slice in self.stack_slices:
-
             for cell in stack_slice.cells:
-
                 hits = 0
-                large_replace = []
-
-                for large_Cell in self.large_Cells:
+                neighbor_cells = []
+                for ngs in cell.gridSquare.neighbors:
+                    neighbor_cells.extend(ngs.large_Cells)
+                for large_Cell in cell.gridSquare.large_Cells + neighbor_cells:
+                    if large_Cell is cell:
+                        continue
                     if cell.contains_or_overlaps(large_Cell)[0]:
                         large_replace = large_Cell
                         hits += 1
                     if hits > 1:
                         break
-
                 if hits == 1:
                     self.large_Cells.remove(large_replace)
+                    large_replace.gridSquare.large_Cells.remove(large_replace)
                     large_replace.stack_slice.contained_Cells.append(large_replace)
                     self.large_Cells.append(cell)
-
+                    cell.gridSquare.large_Cells.append(cell)
                 else:
-                    large_replace = []
+                    large_replace = set()
                     new_cell = True
-                    for large_Cell in self.large_Cells:
+                    for large_Cell in cell.gridSquare.large_Cells + neighbor_cells:
+                        if large_Cell is cell:
+                            continue
+                        assert large_Cell in self.large_Cells, 'grid large should add up'
                         (contained, overlapping) = large_Cell.contains_or_overlaps(cell)
                         if contained: #contained
                             new_cell = False
@@ -86,22 +141,19 @@ class Stack:
                                 cell.stack_slice.overlapping_Cells.append(cell)
                                 break
                             else:
-                                large_replace.append(large_Cell)
+                                large_replace.add(large_Cell)
                                 large_Cell.stack_slice.overlapping_Cells.append(large_Cell)
 
                     if new_cell:
                         self.large_Cells.append(cell)
+                        cell.gridSquare.large_Cells.append(cell)
                     if large_replace:
-                        #print('replaced')
                         for lr in large_replace:
+                            assert lr in self.large_Cells, 'large cells changed?{0}'.format(large_replace)
                             self.large_Cells.remove(lr)
-
+                            lr.gridSquare.large_Cells.remove(lr)
         for lg in self.large_Cells:
-            #if not lg.internalEdges and lg.roundness > 0.4:
             lg.stack_slice.finalizedCellSlice.addCell(lg)
-            self.largest_Cells.append(lg)
-            # else:
-            #     lg.stack_slice.roundness_rejected_Cells.append(lg)
-
+ 
 
 

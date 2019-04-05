@@ -21,6 +21,8 @@ from operator import add
 import scipy.ndimage
 import scipy.io as spio
 from sklearn.cluster import KMeans
+import sys
+sys.setrecursionlimit(10000)
 
 
 
@@ -221,11 +223,13 @@ def saveClusters(inFile, clusters=Cluster.clusters):
     pickle.dump(Cluster.segmented, outFile)
     outFile.close()
 
-def loadCells(inFile, stack_slice):
+def loadCells(inFile, stack_slice, grid):
     cellFile = open(inFile.replace('.tif', '_cells.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
     stack_slice.cells = pickle.load(cellFile)
     for c in stack_slice.cells:
         c.stack_slice = stack_slice
+        c.gridSquare = grid.getGridSquare(c.center)
+        c.gridSquare.addCell(c)
     cellFile.close()
 
 def saveCells(inFile, stack_slice):
@@ -234,7 +238,7 @@ def saveCells(inFile, stack_slice):
     pickle.dump(stack_slice.cells, outFile)
     outFile.close()
 
-def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
+def process_image(inFile, stack_slice, grid, binarized, clustered, split, overlay):
     with skimage.external.tifffile.TiffFile(inFile) as pic:
         pic_array = pic.asarray()
     global nucleusMode
@@ -244,7 +248,7 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     global WHITE
     if split: #breakpoint to test stack collation
         try:
-            loadCells(inFile, stack_slice)
+            loadCells(inFile, stack_slice, grid)
             Cluster.pic = pic_array
         except (FileNotFoundError, EOFError):
             clustered = True
@@ -310,7 +314,8 @@ def visualize_Clusters(out_array, inFile, clusters, num=None):
 
 def parallel(prefix, binarized, clustered, split, overlaid):
 
-    current_stack = Stack()
+    current_stack = Stack(512, 512, 32)
+    Cluster.current_stack = current_stack
     x = 1
     if split:
         binarized, clustered = True, True
@@ -323,7 +328,7 @@ def parallel(prefix, binarized, clustered, split, overlaid):
             stack_slice = Stack_slice(x, cells=[])
             inFile = prefix + 'piece-' + str(x).rjust(4, '0') + '.tif'
 
-            pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split, overlay))
+            pic_arrays.append(process_image(inFile, stack_slice, current_stack.grid, binarized, clustered, split, overlay))
 
             stack_slice.pruneCells(0.4)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
@@ -416,7 +421,7 @@ def overlay(current_stack, prefix, pic_arrays):
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
     cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]; yellow = [colorLimit, colorLimit, 0]
     green = [0, colorLimit, 0]; white_ = [colorLimit, colorLimit, colorLimit]; red = [colorLimit, 0, 0]
-    for c in current_stack.largest_Cells:
+    for c in current_stack.large_Cells:
         x+=1
         color_index = c.stack_slice.number % len(colored)
         for b in c.boundary:

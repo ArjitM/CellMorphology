@@ -538,6 +538,9 @@ class Cell(Cluster):
         self.interior = interior
         self.boundary = self.getBoundary(binary, interior)
         if len(self.boundary) > 25:
+            self.center = (int(np.mean([p[0] for p in self.boundary])), int(np.mean([p[1] for p in self.boundary])))
+            self.gridSquare = Cluster.current_stack.grid.getGridSquare(self.center)
+            self.gridSquare.addCell(self)
             super().__init__(binary, self.boundary, stack_slice, internalEdges=internalEdges)
             self.stack_slice.addCell(self)
 
