@@ -590,9 +590,9 @@ class Cell(Cluster):
     def isLoaded(self):
         x = 0
         for (i,j) in self.interior:
-            if Cluster.pic[i,j] > 0.8 * WHITE:
+            if Cluster.pic[i,j] > 0.25 * WHITE:
                 x += 1
-        return x > 0.8 * len(self.interior)
+        return x > 0.5 * len(self.interior)
 
     def kill(self):
         if self in self.stack_slice.cells:

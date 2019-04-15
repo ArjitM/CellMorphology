@@ -474,7 +474,7 @@ def overlay(current_stack, prefix, pic_arrays):
             else:
                 for b in c.boundary:
                     largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in green][i] for i in range(0, 3)]
-            print('cell #{0} \t roundness: {1}'.format(x, c.roundness))
+            #print('cell #{0} \t roundness: {1}'.format(x, c.roundness))
         #visualize_Cells(pic_arrays[0], prefix, ss.finalizedCellSlice.cells)
         #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
     outFile.close()
