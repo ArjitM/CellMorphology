@@ -21,6 +21,10 @@ from operator import add
 import scipy.ndimage
 import scipy.io as spio
 from sklearn.cluster import KMeans
+import sys
+sys.setrecursionlimit(10000)
+
+
 
 def makeClusters_Matlab(binary, inFile, stack_slice):
     Cluster.clusters = []
@@ -38,12 +42,8 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
         k = 0
         if type(boundaries) != np.object:
             boundaries = [boundaries]
-        #print('$$$$$$', boundaries)
         for bound in boundaries:
-            #print('*****')
-            #print(bound)
             pivots.append([])
-            #print(bound[0][0], type(bound[0][0]), type(bound[0][0]) == np.ndarray)
             if type(bound[0][0]) != np.ndarray:
                 clusterBounds.append([tuple( map( add, bp, (-1, -1) ) ) for bp in bound]) #convert from matlab double
             else:
@@ -66,7 +66,6 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     return Cluster.clusters, boundary
 
 def makeBinary(inFile, pic_array, pic):
-
     #pic_array = pic.asarray()
     #out_array = pic.asarray(); #copy dimensions
     global WHITE
@@ -74,62 +73,48 @@ def makeBinary(inFile, pic_array, pic):
     Binarize.WHITE = WHITE
     Binarize.bin_WHITE = WHITE
     Cell_objects.WHITE = WHITE
-
     out_array = [ [0] * len(pic_array[1]) ] * len(pic_array)
     regions = Compartmentalize(pic_array, 32)
-
     #out_array = copy.deepcopy(pic_array) #
     out_array = np.array(out_array, dtype=pic_array.dtype.type) # keep same image type
     #basicEdge(pic_array, out_array, regions) # preliminary edge detection via pixel gradient
-
     noise_handler = Noise(out_array, regions, iterations=3, binary=False)
     noise_handler.reduce() 
-
     out_array = pic_array > threshold_local(pic_array, block_size=35).astype(pic_array.dtype.type) 
     out_array = out_array.astype(pic_array.dtype.type)
     out_array = np.array([ [WHITE if p else 0 for p in row] for row in out_array], dtype = pic_array.dtype.type)
-
-    if not nucleusMode:
+    if not nucleusMode and not virus_inject:
         out_array = skimage.util.invert(out_array) #inversion required for soma stain
         # out_array = growCellBoundaries(pic_array, out_array)
         # out_array = pic_array < threshold_local(pic_array, block_size=35).astype(pic_array.dtype.type) 
         # out_array = out_array.astype(pic_array.dtype.type)
         # out_array = np.array([ [WHITE if p else 0 for p in row] for row in out_array], dtype = pic_array.dtype.type)
-
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
-
     #regions.setNoiseCompartments(out_array, 0.95)
     #regions.reviseNoiseCompartments()
     for i in range(len(out_array)):
         for j in range(len(out_array[0])):
             if regions.getCompartment(i, j).noise_compartment:
                 out_array[i][j] = 0
-
     #enhanceEdges(pic_array, out_array, regions, nucleusMode=False) # use detected averages to guess missing edges
     #skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
-
     noise_handler = Noise(out_array, iterations=3, binary=True)
     noise_handler.reduce(largeNoise=True) #reduce salt and pepper noise incorrectly labeled as edges 
     noise_handler.reduce(largeNoise=False)
-
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     print("***made binary")
-
     labeled, num_objects = scipy.ndimage.label(out_array)
     #print("Objects detected", num_objects)
     #print(labeled)
     #labeled = remove_largeNoise(labeled, num_objects)
     visualize_labeled(labeled, inFile)
-
     outFile = open(inFile.replace('.tif', '_labeled.pkl'), 'wb')
     pickle.dump(labeled, outFile, protocol=2)
     outFile.close()
     # Cellprofiler and dependencies are built in python2, therefore use pickle for variable handoffs
     os.system('python2 declump_bridge.py "{0}" "{1}" "{2}"'.format(inFile, inFile.replace('.tif', '_Binary.tif'), inFile.replace('.tif', '_labeled.pkl')))
-
     segmented = loadObjects(inFile)
     visualize_labeled(segmented, inFile, name='_segmented')
-
     for i in range(len(segmented)):
         for j in range(len(segmented[0])):
             if segmented[i,j] != 0:
@@ -149,7 +134,6 @@ def loadObjects(inFile):
 
 
 def visualize_labeled(labeled, inFile, name='_labeled'):
-
     labeled_image = skimage.color.gray2rgb(labeled)
     colorLimit = skimage.dtype_limits(labeled, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
@@ -166,7 +150,6 @@ def visualize_labeled(labeled, inFile, name='_labeled'):
 def remove_largeNoise(labeled, num_objects):
     if num_objects == 0:
         return labeled
-
     for n in range(1, num_objects):
         obj = []
         for i in range(len(labeled)):
@@ -178,44 +161,14 @@ def remove_largeNoise(labeled, num_objects):
                 labeled[i][j] = 0
     return labeled
 
-
-
 def makeCells(inFile, clusters):
-    # i = -1
-    # #noise_clusters = []
-
-    # for c in clusters:
-    #     try:
-    #         #c.getTrueCusps(16)
-    #     except AssertionError:
-    #         #noise_clusters.append(c)
-    #         c.kill()
-    #     else:
-    #         #c.growPivots()
-    #         #c.transformToCell()
-    #         # c.pruneCusps()
-    #         # c.propagateInternalBoundaries()
-    #         # c.showCusps()  #WONT WORK with boolean binary
-    #         # c.splitByEdges()
-
-
-    # for c, kmean_labels in zip(clusters, labels_per_cluster):
-    #     cleave_points = c.getCuspsKMeans(kmean_labels)
-    #     if cleave_points is not None:
-    #         c.propagateInternalBoundaries(cleave_points=cleave_points)
-    #         c.splitByEdges()
-    #         c.showCusps()
-    #     else:
-    #         c.transformToCell()
 
     labels_per_cluster = declumpKMeans(inFile, clusters, clusters[0].binary, Cluster.pic)
     assert len(clusters) == len(labels_per_cluster), 'each cluster must be labeled'
     for c, labels in zip(clusters, labels_per_cluster):
         c.splitConglomerates(labels)
-            
     if Cluster.clusters:
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_BinaryEdged.tif'), Cluster.clusters[0].binary)
-
 
 def getBinary(inFile, pic_array, binarized):
     if binarized:
@@ -223,7 +176,6 @@ def getBinary(inFile, pic_array, binarized):
             with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
                 bin_array = pic_bin.asarray()
             segmented = loadObjects(inFile)
-
         except (FileNotFoundError, EOFError):
             pic = skimage.external.tifffile.TiffFile(inFile)
             bin_array, segmented = makeBinary(inFile, pic_array, pic)
@@ -238,6 +190,9 @@ def getBinary(inFile, pic_array, binarized):
         pic = skimage.external.tifffile.TiffFile(inFile)
         bin_array, segmented = makeBinary(inFile, pic_array, pic)
         pic.close()
+    # if virus_inject:
+    #     vload = getLoadedPixels(pic_array, bin_array)
+    #     skimage.external.tifffile.imsave(inFile.replace('.tif', '_virus.tif'), vload)
     return bin_array, segmented
 
 
@@ -268,11 +223,13 @@ def saveClusters(inFile, clusters=Cluster.clusters):
     pickle.dump(Cluster.segmented, outFile)
     outFile.close()
 
-def loadCells(inFile, stack_slice):
+def loadCells(inFile, stack_slice, grid):
     cellFile = open(inFile.replace('.tif', '_cells.pkl'), 'rb') #FileNotFoundError if not found. DO NOT try-block!
     stack_slice.cells = pickle.load(cellFile)
     for c in stack_slice.cells:
         c.stack_slice = stack_slice
+        c.gridSquare = grid.getGridSquare(c.center)
+        c.gridSquare.addCell(c)
     cellFile.close()
 
 def saveCells(inFile, stack_slice):
@@ -281,19 +238,17 @@ def saveCells(inFile, stack_slice):
     pickle.dump(stack_slice.cells, outFile)
     outFile.close()
 
-
-def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
-
+def process_image(inFile, stack_slice, grid, binarized, clustered, split, overlay):
     with skimage.external.tifffile.TiffFile(inFile) as pic:
         pic_array = pic.asarray()
-
     global nucleusMode
-    global WHITE
     nucleusMode = '-rfp-' in inFile or 'ucleus' in inFile
-
+    global virus_inject
+    virus_inject = 'RFP' in inFile
+    global WHITE
     if split: #breakpoint to test stack collation
         try:
-            loadCells(inFile, stack_slice)
+            loadCells(inFile, stack_slice, grid)
             Cluster.pic = pic_array
         except (FileNotFoundError, EOFError):
             clustered = True
@@ -303,7 +258,6 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
             Binarize.bin_WHITE = WHITE
             Cell_objects.WHITE = WHITE
             return pic_array
-
     if clustered:
         clusters = []
         try:
@@ -326,7 +280,6 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
         pass
 
     bin_array, segmented = getBinary(inFile, pic_array, binarized)
-    
     Cluster.pic = pic_array
     Cluster.segmented = segmented
     clusters, boundary = makeClusters_Matlab(bin_array, inFile, stack_slice)
@@ -337,26 +290,16 @@ def process_image(inFile, stack_slice, binarized, clustered, split, overlay):
     saveCells(inFile, stack_slice)
     return pic_array
 
-
-
 def visualize_Clusters(out_array, inFile, clusters, num=None):    
-    c_arr = copy.deepcopy(out_array)
+    c_arr = copy.deepcopy(out_array) #psuedo-deep
     for i in range(len(c_arr)):
         for j in range(len(c_arr[0])):
             c_arr[i][j] = 0
-    
     if num is None:        
         for k in range(len(clusters)):
             ck = [(c[0], c[1]) for c in clusters[k].boundary]
             for (i,j) in ck:
                 c_arr[i][j] = WHITE
-            # for i in range(len(c_arr)):
-            #     for j in range(len(c_arr[0])):
-            #         if (i,j) in ck:
-            #             c_arr[i][j] = WHITE
-            #         else:
-            #             c_arr[i][j] = 0
-            # skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr)
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_clusters_' +'.tif'), c_arr)
     else:
         k = num
@@ -369,29 +312,10 @@ def visualize_Clusters(out_array, inFile, clusters, num=None):
                     c_arr[i][j] = 0
         skimage.external.tifffile.imsave(inFile.replace('.tif', '_cluster_' +str(k)+'.tif'), c_arr) 
 
-def getImageDirectories(locations):
-    prefixes = []
-
-    def recursiveDirectories(loc):
-        nonlocal prefixes
-        try:
-            for d in next(os.walk(loc))[1]:
-                if 'normal' in d or '_RFP' in d:
-                    prefixes.append(loc + d + '/')
-                    print(loc + d + '/')
-                else:
-                    recursiveDirectories(loc + d + '/')
-        except StopIteration:
-            pass
-
-    for loc in locations:
-        recursiveDirectories(loc)
-    return prefixes
-
-
 def parallel(prefix, binarized, clustered, split, overlaid):
 
-    current_stack = Stack()
+    current_stack = Stack(512, 512, 64)
+    Cluster.current_stack = current_stack
     x = 1
     if split:
         binarized, clustered = True, True
@@ -404,9 +328,9 @@ def parallel(prefix, binarized, clustered, split, overlaid):
             stack_slice = Stack_slice(x, cells=[])
             inFile = prefix + 'piece-' + str(x).rjust(4, '0') + '.tif'
 
-            pic_arrays.append(process_image(inFile, stack_slice, binarized, clustered, split, overlay))
+            pic_arrays.append(process_image(inFile, stack_slice, current_stack.grid, binarized, clustered, split, overlay))
 
-            stack_slice.pruneCells(0.4)
+            stack_slice.pruneCells(0.5)
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
             current_stack.addSlice(stack_slice)
 
@@ -421,9 +345,9 @@ def parallel(prefix, binarized, clustered, split, overlaid):
         else:
             print(prefix)
             x += 1
-
     current_stack.collate_slices(nucleusMode)
     overlay(current_stack, prefix, pic_arrays)
+
 
 def groupPointsBoundary(boundary, num_groups=2):
     KMean = KMeans(n_clusters=num_groups)
@@ -481,7 +405,18 @@ def declumpKMeans(inFile, clusters, bin_array, pic_array):
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_kmeans.tif'), out_rgb)
     return labels_per_cluster
 
-
+def visualize_Cells(out_array, prefix, cells):    
+    c_arr = copy.deepcopy(out_array) #psuedo-deep    
+    x = 1
+    for k in range(len(cells)):
+        for i in range(len(c_arr)):
+            for j in range(len(c_arr[0])):
+                c_arr[i][j] = 0  
+        ck = [(c[0], c[1]) for c in cells[k].boundary]
+        for (i,j) in ck:
+            c_arr[i][j] = WHITE
+        skimage.external.tifffile.imsave(prefix + '_cells_' + str(x) + '.tif', c_arr)
+        x += 1
 
 def overlay(current_stack, prefix, pic_arrays):
 
@@ -492,70 +427,66 @@ def overlay(current_stack, prefix, pic_arrays):
         outFile = open(prefix + 'Nucleus Sizes.csv', 'w')
     else:
         outFile = open(prefix + 'Soma Sizes.csv', 'w')
-
     colorLimit = skimage.dtype_limits(out_rgb, True)[1]
     colored = ([0, 0, colorLimit], [0, colorLimit, 0], [colorLimit, 0, 0], [colorLimit, colorLimit, 0], [colorLimit, 0, colorLimit], [0, colorLimit, colorLimit], [colorLimit, colorLimit, colorLimit])
     cyan = [0, colorLimit, colorLimit]; magenta = [colorLimit, 0, colorLimit]; yellow = [colorLimit, colorLimit, 0]
-    green = [0,colorLimit, 0]; white_ = [colorLimit, colorLimit, colorLimit]
-
-    for c in current_stack.largest_Cells:
+    green = [0, colorLimit, 0]; white_ = [colorLimit, colorLimit, colorLimit]; red = [colorLimit, 0, 0]
+    blue = [0, 0, colorLimit]
+    for c in current_stack.large_Cells:
         x+=1
         color_index = c.stack_slice.number % len(colored)
         for b in c.boundary:
             out_rgb[b[0]][b[1]] = colored[color_index]
     skimage.external.tifffile.imsave(prefix + 'largest.tif', out_rgb)
-    
     outFile.write("LARGEST CELLS ARE \n")
     largest_3d = []
     x=1
+    k=1
+    assert len(current_stack.stack_slices) == len(pic_arrays), 'Stack slices and picture array mismatches: {0} and {1}'.format(len(current_stack.stack_slices), len(pic_arrays))
     for ss, pic_array in zip(current_stack.stack_slices, pic_arrays):
+        assert ss.number == k, 'Stack slice pic array mismatch'
+        k = k+1
         largest_3d.append(skimage.color.gray2rgb(pic_array))
-        #largest_3d[-1].fill(0)
         color_index = ss.number % len(colored)
-
-        #print(ss.finalizedCellSlice.cells)
         for c in ss.cells:
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = [0,0,0]
-
         for c in ss.overlapping_Cells: 
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in white_][i] for i in range(0, 3)]
-
         for c in ss.roundness_rejected_Cells: #this is a subset of cells (above) so order matters!
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in yellow][i] for i in range(0, 3)]
-
         for c in ss.size_rejected_Cells: 
             for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in green][i] for i in range(0, 3)]
-
+                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in blue][i] for i in range(0, 3)]
         for c in ss.contained_Cells: 
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in magenta][i] for i in range(0, 3)]
-
         for c in ss.finalizedCellSlice.cells:
-            outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}\n".format(x, c.stack_slice.number, c.area, c.roundness))
+            outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}, Viral status:, {4}\n".format(x, c.stack_slice.number, c.area, c.roundness, c.isLoaded))
             x+=1
             for b in c.interior:
                 largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in cyan][i] for i in range(0, 3)]
-            for b in c.boundary:
-                largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in cyan][i] for i in range(0, 3)]
-                #colored[color_index]
+            if c.isLoaded: 
+                for b in c.boundary:
+                    largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in red][i] for i in range(0, 3)]
+            else:
+                for b in c.boundary:
+                    largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in green][i] for i in range(0, 3)]
+            print('cell #{0} \t roundness: {1}'.format(x, c.roundness))
+        #visualize_Cells(pic_arrays[0], prefix, ss.finalizedCellSlice.cells)
         #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
     outFile.close()
     largest_3d = np.array(largest_3d)
     skimage.external.tifffile.imsave('{0}largest3D.tif'.format(prefix), largest_3d)
 
-
-
 parser = argparse.ArgumentParser(description="specify previous completion")
-
 parser.add_argument('-b', '--binarized', dest="binarized", default=False, action="store_true")
 parser.add_argument('-c', '--clustered', dest="clustered", default=False, action="store_true")
 parser.add_argument('-s', '--split', dest="split", default=False, action="store_true")
 parser.add_argument('-o', '--overlaid', dest="overlaid", default=False, action="store_true")
-
+parser.add_argument('-l', '--local', dest="localRun", default=False, action="store_true")
 args = parser.parse_args()
 
 def one_arg(prefix):
@@ -564,28 +495,52 @@ def one_arg(prefix):
     except Exception as e:
         print("Error occured in processing {0}: {1}".format(prefix, e))
         logging.error(traceback.format_exc())
-    # try:
-    #     subprocess.run("rclone move {0} arjit_bdrive:/Cell_Morphology_Research/{0}".format(prefix.replace("/piece-", "")), shell=True)
-    # except Exception as e:
-    #     print("Error occured in copying {0}: {1}".format(prefix, e))
-    #     logging.error(traceback.format_exc())
-
-locations = [
-'/global/scratch/arjitmisra/2-14/vit_A_free/',
-'/global/scratch/arjitmisra/2-14/WT/',
-'/global/scratch/arjitmisra/2-14/RD1-P2X7KO/',
-'/global/scratch/arjitmisra/2-14/RD1/',
-'/global/scratch/arjitmisra/2-14/VAF_new_cohort/'
-]
-
-prefixes = getImageDirectories(locations)
-
-cpus = multiprocessing.cpu_count()
-with Pool(cpus * 3) as p:
-  p.map(one_arg, prefixes)
 
 
+def getImageDirectories(locations):
+    prefixes = []
 
+    def recursiveDirectories(loc):
+        nonlocal prefixes
+        try:
+            for d in next(os.walk(loc))[1]:
+                if 'normal' in d or '_RFP' in d:
+                    prefixes.append(loc + d + '/')
+                    print(loc + d + '/')
+                else:
+                    recursiveDirectories(loc + d + '/')
+        except StopIteration:
+            pass
 
+    for loc in locations:
+        recursiveDirectories(loc)
+    return prefixes
 
+if args.localRun:
+    #one_arg('../p2f1_normal/')
+    #one_arg('../piece1-gfp-normal/')
+    one_arg('../cell12_RFPsequence/')
+    #one_arg('../YFP-RA viruses imaging for morphology/3rd set of experiments/rd1-403/Mouse 1/LEFT EYE/cell-12-RFP/piece-')
+    locations = [
+    '../vit A/vit_A_free/',
+    '../Cell-Size-Project/WT/',
+    '../Cell-Size-Project/RD1-P2X7KO/',
+    '../Cell-Size-Project/RD1/',
+    '../VAF_new_cohort/',
+    '../YFP-RA-viruses/'
+    ]
+
+else:
+    locations = [
+    '/global/scratch/arjitmisra/2-14/vit_A_free/',
+    '/global/scratch/arjitmisra/2-14/WT/',
+    '/global/scratch/arjitmisra/2-14/RD1-P2X7KO/',
+    '/global/scratch/arjitmisra/2-14/RD1/',
+    '/global/scratch/arjitmisra/2-14/VAF_new_cohort/',
+    '/global/scratch/arjitmisra/YFP-RA-viruses/'
+    ]
+    prefixes = getImageDirectories(locations)
+    cpus = multiprocessing.cpu_count()
+    with Pool(cpus * 3) as p:
+      p.map(one_arg, prefixes)
 

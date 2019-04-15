@@ -77,7 +77,7 @@ class Cluster:
 
     def __init__(self, binary, boundary, stack_slice, pivots=None, internalEdges=None): #, segmented=None, pic=None):
 
-        self.boundary = boundary #DO NOT SORT THIS! Order is important
+        self.boundary = list(set(boundary)) #DO NOT SORT THIS! Order is important
         #self.boundary2D = self.getBoundary2D()
         self.binary = binary
         self.cells = []
@@ -575,8 +575,10 @@ class Cell(Cluster):
         #     d = math.sqrt( (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
         #     return d
 
-        # normalized_distances = list(np.sqrt([ ((distance(b, self.center) - ideal)/ideal)**2 for b in self.boundary]))
-        #return 1 - np.mean(normalized_distances)
+        # # normalized_distances = list(np.sqrt([ ((distance(b, self.center) - ideal)/ideal)**2 for b in self.boundary]))
+        # distance_sequence = [distance(b, self.center) for b in self.boundary]
+        # #print(distance_sequence)
+        # return 1- np.std(distance_sequence) / ideal
     @property
     def area(self):
         if len(self.interior) > 0:
