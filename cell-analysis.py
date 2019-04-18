@@ -104,8 +104,6 @@ def makeBinary(inFile, pic_array, pic):
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_Binary.tif'), out_array)
     print("***made binary")
     labeled, num_objects = scipy.ndimage.label(out_array)
-    #print("Objects detected", num_objects)
-    #print(labeled)
     #labeled = remove_largeNoise(labeled, num_objects)
     visualize_labeled(labeled, inFile)
     outFile = open(inFile.replace('.tif', '_labeled.pkl'), 'wb')
@@ -464,16 +462,16 @@ def overlay(current_stack, prefix, pic_arrays):
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in magenta][i] for i in range(0, 3)]
         for c in ss.finalizedCellSlice.cells:
-            outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}, Viral status:, {4}\n".format(x, c.stack_slice.number, c.area, c.roundness, c.isLoaded))
+            outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}, Viral status:, {4}\n".format(x, c.stack_slice.number, c.area * (212/512)**2, c.roundness, virus_inject and c.isLoaded))
             x+=1
             for b in c.interior:
                 largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.8) + [int(c * 0.2) for c in cyan][i] for i in range(0, 3)]
-            if c.isLoaded: 
+            if virus_inject and c.isLoaded: 
                 for b in c.boundary:
                     largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in red][i] for i in range(0, 3)]
             else:
                 for b in c.boundary:
-                    largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in green][i] for i in range(0, 3)]
+                    largest_3d[-1][b[0]][b[1]] = [ int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in cyan][i] for i in range(0, 3)]
             #print('cell #{0} \t roundness: {1}'.format(x, c.roundness))
         #visualize_Cells(pic_arrays[0], prefix, ss.finalizedCellSlice.cells)
         #skimage.external.tifffile.imsave(prefix + 'largest' + str(ss.number) + '.tif', largest_3d[-1])
@@ -487,6 +485,8 @@ parser.add_argument('-c', '--clustered', dest="clustered", default=False, action
 parser.add_argument('-s', '--split', dest="split", default=False, action="store_true")
 parser.add_argument('-o', '--overlaid', dest="overlaid", default=False, action="store_true")
 parser.add_argument('-l', '--local', dest="localRun", default=False, action="store_true")
+parser.add_argument('--start', dest="startIndex", default=0, type=int)
+parser.add_argument('--end', dest="endIndex", default=-1, type=int)
 args = parser.parse_args()
 
 def one_arg(prefix):
@@ -518,8 +518,9 @@ def getImageDirectories(locations):
 
 if args.localRun:
     #one_arg('../p2f1_normal/')
-    #one_arg('../piece1-gfp-normal/')
-    one_arg('../cell12_RFPsequence/')
+    print(args.startIndex, args.endIndex)
+    one_arg('../piece1-gfp-normal/')
+    #one_arg('../cell12_RFPsequence/')
     #one_arg('../YFP-RA viruses imaging for morphology/3rd set of experiments/rd1-403/Mouse 1/LEFT EYE/cell-12-RFP/piece-')
     locations = [
     '../vit A/vit_A_free/',
@@ -539,8 +540,8 @@ else:
     '/global/scratch/arjitmisra/2-14/VAF_new_cohort/',
     '/global/scratch/arjitmisra/YFP-RA-viruses/'
     ]
-    prefixes = getImageDirectories(locations)
+    prefixes = getImageDirectories(locations)[args.startIndex:args.endIndex]
     cpus = multiprocessing.cpu_count()
-    with Pool(cpus * 3) as p:
+    with Pool(cpus * 8) as p:
       p.map(one_arg, prefixes)
 

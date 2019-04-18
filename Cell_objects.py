@@ -84,14 +84,14 @@ class Cluster:
         self.cusps = []
         self.center = (int(np.mean([p[0] for p in self.boundary])), int(np.mean([p[1] for p in self.boundary])))
         self.pivots = createPivots(pivots, binary) if pivots is not None else None
-        if (not self.pivots) or len(self.pivots) < 6:
-            self.constriction_points = []
-            self.internalEdges = internalEdges
-            self.stack_slice = stack_slice
-            #self.object_number = None
-            self.internalEdges = [] if (internalEdges is None) else internalEdges #using [] as default argument is problematic; old is appended to default
-            if not isinstance(self, Cell):
-                Cluster.clusters.append(self)
+        #if (not self.pivots) or len(self.pivots) < 6:
+        self.constriction_points = []
+        self.internalEdges = internalEdges
+        self.stack_slice = stack_slice
+        #self.object_number = None
+        self.internalEdges = [] if (internalEdges is None) else internalEdges #using [] as default argument is problematic; old is appended to default
+        if not isinstance(self, Cell):
+            Cluster.clusters.append(self)
 
     def getTrueCusps(self, segmentLen=8, arc=None):
         #arc must be None if using gradient-only declumping
