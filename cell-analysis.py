@@ -486,7 +486,7 @@ parser.add_argument('-s', '--split', dest="split", default=False, action="store_
 parser.add_argument('-o', '--overlaid', dest="overlaid", default=False, action="store_true")
 parser.add_argument('-l', '--local', dest="localRun", default=False, action="store_true")
 parser.add_argument('--start', dest="startIndex", default=0, type=int)
-parser.add_argument('--end', dest="endIndex", default=-1, type=int)
+parser.add_argument('--end', dest="endIndex", default=None, type=int)
 args = parser.parse_args()
 
 def one_arg(prefix):
@@ -518,7 +518,6 @@ def getImageDirectories(locations):
 
 if args.localRun:
     #one_arg('../p2f1_normal/')
-    print(args.startIndex, args.endIndex)
     one_arg('../piece1-gfp-normal/')
     #one_arg('../cell12_RFPsequence/')
     #one_arg('../YFP-RA viruses imaging for morphology/3rd set of experiments/rd1-403/Mouse 1/LEFT EYE/cell-12-RFP/piece-')
