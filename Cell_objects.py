@@ -16,6 +16,8 @@ import functools
 global WHITE
 WHITE = None
 
+LENGTH_CUTOFF = 25
+
 
 class Cusp:
 
@@ -422,7 +424,7 @@ class Cluster:
     def splitByEdges(self):
         if self.internalEdges == []:
             newCell = Cluster.makeCell(self.stack_slice, self.binary, self.boundary, [])
-            if len(newCell.boundary) > 10:
+            if len(newCell.boundary) > LENGTH_CUTOFF:
                 self.stack_slice.addCell(newCell)
         else:
             if self.internalEdges:
@@ -540,6 +542,17 @@ class Cluster:
         Cluster.clusters.remove(self)
 
 
+'''Convenience class to aid (de)serialization of Cell objects without invoking hash method to avoid error'''
+class CellSerialized:
+
+    def __init__(self, binary, boundary, interior, internalEdges, center):
+        self.binary = binary
+        self.boundary = boundary
+        self.interior = interior
+        self.internalEdges = internalEdges
+        self.center = center
+
+
 class Cell(Cluster):
 
     def __init__(self, stack_slice, binary, interior, internalEdges=None):  # boundary X interior
@@ -547,17 +560,34 @@ class Cell(Cluster):
         self.interior = interior
         self.boundary = self.getBoundary(binary, interior)
 
-        if len(self.boundary) > 25:
+        self.gridSquare = None
+        self.stack_slice = None
+        self.center = None
+
+        if len(self.boundary) > LENGTH_CUTOFF:
             if internalEdges is None:
                 internalEdges = []
-            self.center = (int(np.mean([p[0] for p in self.boundary])), int(np.mean([p[1] for p in self.boundary])))
-            self.gridSquare = self.stack_slice.threeDstack.getGridSquare(self.center)
+            self.center = (int(math.ceil(np.mean([p[0] for p in self.boundary]))), int(math.ceil(np.mean([p[1] for p in self.boundary]))))
+            self.gridSquare = stack_slice.threeDstack.grid.getGridSquare(self.center)
             self.gridSquare.addCell(self)
             super().__init__(binary, self.boundary, stack_slice, internalEdges=internalEdges)
             self.stack_slice.addCell(self)
 
     def __hash__(self):
-        return self.center[0] * 10**(math.ceil(math.log10(self.center[1]))) + self.center[1]
+        try:
+            return self.center[0] * 10**(math.ceil(math.log10(self.center[1]))) + self.center[1]
+        except ValueError:
+            return 0
+
+    def __getstate__(self):
+        return CellSerialized(self.binary, self.boundary, self.interior, self.internalEdges, self.center)
+
+    def __setstate__(self, state):
+        self.binary = state.binary
+        self.boundary = state.boundary
+        self.interior = state.interior
+        self.internalEdges = state.internalEdges
+        self.center = state.center
 
     def getBoundary(self, binary, interior):
         boundary = []
@@ -583,7 +613,7 @@ class Cell(Cluster):
         for other_p in other_cell.boundary:
             if self.pointWithin(other_p):
                 hits += 1
-        return hits >= k // 3 and self.pointWithin(other_cell.center), hits >= k // 6
+        return hits >= k // 10 and self.pointWithin(other_cell.center), hits >= 1
 
     @property
     @functools.lru_cache()

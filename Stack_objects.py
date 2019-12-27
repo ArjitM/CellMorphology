@@ -12,7 +12,7 @@ class GridSquare:
         self.large_Cells = set()
 
     def __hash__(self):
-        return self.coordinates.__hash__()
+        return hash(self.coordinates.values())
 
     def addCell(self, cell):
         self._cells.add(cell)
@@ -20,11 +20,12 @@ class GridSquare:
 
 class Grid:
     def __init__(self, xmax, ymax, squareSize):
-        self.compartments = set()
+        self.compartments = []
         i_max, j_max, ki, kj = ymax, xmax, 0, 0
         while ki < i_max:
             while kj < j_max:
-                self.compartments.add(GridSquare(kj, min(kj + squareSize, j_max), ki, min(ki + squareSize, i_max)))
+                G = GridSquare(kj, min(kj + squareSize, j_max), ki, min(ki + squareSize, i_max))
+                self.compartments.append(G)
                 kj += squareSize
             kj = 0
             ki += squareSize
@@ -82,7 +83,7 @@ class Stack_slice:
         self.cells.remove(cell)
 
     def addContainedCell(self, cell):
-        self.contained_Cells.append(cell)
+        self.contained_Cells.add(cell)
 
     def pruneCells(self, roundness_thresh=0.75):
 
@@ -123,7 +124,7 @@ class Stack:
                 for ngs in cell.gridSquare.neighbors:
                     neighbor_cells.extend(ngs.large_Cells)
 
-                for large_Cell in cell.gridSquare.large_Cells + neighbor_cells:
+                for large_Cell in cell.gridSquare.large_Cells.union(set(neighbor_cells)):
                     if large_Cell is cell:
                         continue
                     if cell.contains_or_overlaps(large_Cell)[0]:
@@ -131,7 +132,7 @@ class Stack:
                         hits += 1
                     if hits > 1:
                         large_replace.stack_slice.split_Cells.add(large_replace)
-                        large_replace.grid_square.large_Cells.remove(large_replace)
+                        large_replace.gridSquare.large_Cells.remove(large_replace)
                         break  # do not add cell to self large cells
 
                 if hits == 1:
@@ -144,7 +145,7 @@ class Stack:
                 else:
                     large_replace = set()
                     new_cell = True
-                    for large_Cell in cell.gridSquare.large_Cells + neighbor_cells:
+                    for large_Cell in cell.gridSquare.large_Cells.union(set(neighbor_cells)):
                         if large_Cell is cell:
                             raise ValueError("Overlap method is not working")
                         assert large_Cell in self.large_Cells, 'grid large should add up'
@@ -169,7 +170,7 @@ class Stack:
                         for lr in large_replace:
                             assert lr in self.large_Cells, 'large cells changed?{0}'.format(large_replace)
                             self.large_Cells.remove(lr)
-                            lr.gridSquare.large_Cells.remove(lr)
+                            lr.gridSquare.large_Cells.discard(lr)
 
         for lg in self.large_Cells:
             lg.stack_slice.finalizedCells.add(lg)

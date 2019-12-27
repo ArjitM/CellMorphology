@@ -7,6 +7,7 @@ from Binarize import *
 from Cell_objects import *
 from Stack_objects import *
 import numpy as np
+import skimage
 from skimage import util
 from skimage.filters import threshold_local, threshold_otsu
 import subprocess
@@ -212,10 +213,8 @@ def superimposeBoundary(inFile, pic_array, boundary=None):
 def loadClusters(inFile, stack_slice):
     clustFile = open(inFile.replace('.tif', '_clusters.pkl'), 'rb')  # FileNotFoundError if not found. DO NOT try-block!
     Cluster.clusters = pickle.load(clustFile)
-    Cluster.segmented = pickle.load(clustFile)
     print('******', len(Cluster.clusters))
     for c in Cluster.clusters:
-        # print("Cluster!!")
         c.stack_slice = stack_slice
     clustFile.close()
     return Cluster.clusters
@@ -224,24 +223,30 @@ def loadClusters(inFile, stack_slice):
 def saveClusters(inFile, clusters=Cluster.clusters):
     outFile = open(inFile.replace('.tif', '_clusters.pkl'), 'wb')
     pickle.dump(clusters, outFile)
-    pickle.dump(Cluster.segmented, outFile)
     outFile.close()
 
 
 def loadCells(inFile, stack_slice, grid):
     cellFile = open(inFile.replace('.tif', '_cells.pkl'), 'rb')  # FileNotFoundError if not found. DO NOT try-block!
-    stack_slice.cells = pickle.load(cellFile)
-    for c in stack_slice.cells:
+    deserialized = pickle.load(cellFile)
+    toExclude = set()
+    for c in deserialized:
         c.stack_slice = stack_slice
         c.gridSquare = grid.getGridSquare(c.center)
         c.gridSquare.addCell(c)
+        try:
+            x = c.center[0]
+            x = c.area
+        except AttributeError:  # corrupt or incorrectly initialized cells
+            toExclude.add(c)
+    stack_slice.cells = set(deserialized) ^ toExclude
     cellFile.close()
 
 
 def saveCells(inFile, stack_slice):
     # print("cells made")
     outFile = open(inFile.replace('.tif', '_cells.pkl'), 'wb')
-    pickle.dump(stack_slice.cells, outFile)
+    pickle.dump(list(stack_slice.cells), outFile)
     outFile.close()
 
 
@@ -489,6 +494,11 @@ def overlay(current_stack, prefix, pic_arrays):
             for b in c.boundary:
                 largest_3d[-1][b[0]][b[1]] = [int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in magenta][i] for
                                               i in range(0, 3)]
+        for c in ss.split_Cells:
+            for b in c.boundary:
+                largest_3d[-1][b[0]][b[1]] = [int(pic_array[b[0]][b[1]] * 0.5) + [int(c * 0.5) for c in green][i] for
+                                              i in range(0, 3)]
+
         for c in ss.finalizedCells:
             outFile.write("Cell, {0}, Slice #, {1}, Area:, {2}, Roundness:, {3}, Viral status:, {4}\n".format(x,
                                                                                                               c.stack_slice.number,
@@ -556,7 +566,7 @@ def getImageDirectories(locations):
 
 
 if args.localRun:
-    one_arg('/Users/arjitmisra/Documents/Kramer_Lab/YFP-RA-viruses/3rd_set/WT-VP16/Mouse-1/LEFT-EYE/cell6_subset/')
+    one_arg('/Users/arjitmisra/Documents/Kramer_Lab/Cell-Size-Project/experiment 1/RD1/piece1-gfp-normal_LocalTest/')
     # one_arg('../p2f1_normal/')
     # one_arg('../piece1-gfp-normal/')
     # one_arg('../cell12_RFPsequence/')
