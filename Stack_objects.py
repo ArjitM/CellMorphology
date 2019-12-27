@@ -1,6 +1,7 @@
 from Cell_objects import *
 
 AREA_CUTOFF = 90
+ROUNDNESS_CUTOFF = 0.5
 
 
 class GridSquare:
@@ -75,7 +76,7 @@ class Stack_slice:
 
     def addCell(self, cell):
         if isinstance(cell, Cell):
-            self.cells.append(cell)
+            self.cells.add(cell)
         else:
             print("not a cell instance")
 
@@ -85,7 +86,7 @@ class Stack_slice:
     def addContainedCell(self, cell):
         self.contained_Cells.add(cell)
 
-    def pruneCells(self, roundness_thresh=0.75):
+    def pruneCells(self, roundness_thresh=ROUNDNESS_CUTOFF):
 
         for c in self.cells:
             if c.roundness < roundness_thresh:

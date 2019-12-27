@@ -338,13 +338,13 @@ def parallel(prefix, binarized, clustered, split, overlaid):
     pic_arrays = []
     while True:
         try:
-            stack_slice = Stack_slice(x, current_stack, cells=[])
+            stack_slice = Stack_slice(x, current_stack, set())
             inFile = prefix + 'piece-' + str(x).rjust(4, '0') + '.tif'
 
             pic_arrays.append(
                 process_image(inFile, stack_slice, current_stack.grid, binarized, clustered, split, overlay))
 
-            stack_slice.pruneCells(0.5)
+            stack_slice.pruneCells()
             print("Slice #{0} has {1} cells : ".format(stack_slice.number, len(stack_slice.cells)))
             current_stack.addSlice(stack_slice)
 
