@@ -21,6 +21,7 @@ import os
 from operator import add
 import scipy.ndimage
 import scipy.io as spio
+import cv2
 from sklearn.cluster import KMeans
 import sys
 
@@ -33,16 +34,18 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     # img = eng.imread(inFile.replace('.tif', '_BinaryPivots.tif'))
     # #boundaries = eng.bwboundaries(img)
     # allBounds = eng.moore_neighbor(img)
-    # print(allBounds)
     subprocess.run("matlab -nosplash -nodesktop -r \"moore_neighbor(\'{0}\'); quit\"".format(
         inFile.replace('.tif', '_BinaryPivots.tif')), shell=True)
     mat = spio.loadmat(inFile.replace('.tif', '_bounds.mat'), squeeze_me=True)
     allBounds = mat['all']
+    #print(allBounds)
     clusterBounds = []
     pivots = []
     for boundaries in allBounds:
         k = 0
-        if type(boundaries) != np.object:
+        try:
+            boundaries = boundaries.tolist()
+        except AttributeError:
             boundaries = [boundaries]
         for bound in boundaries:
             pivots.append([])
@@ -54,6 +57,7 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
                     pivots[-1].append(
                         [tuple(map(add, bp, (-1, -1))) for bp in bound[k]])  # np.array(bp).astype(np.uint16)
     if not clusterBounds:
+        print("ERROR", clusterBounds)
         return None, None
     boundary = [item for sublist in clusterBounds for item in sublist] + [item for sublist in pivots for item in
                                                                           sublist]
@@ -70,34 +74,28 @@ def makeClusters_Matlab(binary, inFile, stack_slice):
     return Cluster.clusters, boundary
 
 
-def makeBinary(inFile, pic_array, pic):
-    # pic_array = pic.asarray()
-    # out_array = pic.asarray(); #copy dimensions
+def anisotropicDiffusionFilter(inFile):
+    subprocess.run("matlab -nosplash -nodesktop -r \"diffusionFilter(\'{0}\'); quit\"".format(inFile), shell=True)
+    return skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_diffFilt.tif')).asarray()
+
+
+def makeBinary(inFile):
     global WHITE
+    # pic_array = anisotropicDiffusionFilter(inFile)
+    pic_array = skimage.external.tifffile.TiffFile(inFile).asarray()
     WHITE = skimage.dtype_limits(pic_array, True)[1]
     Binarize.WHITE = WHITE
     Binarize.bin_WHITE = WHITE
     Cell_objects.WHITE = WHITE
-    out_array = [[0] * len(pic_array[1])] * len(pic_array)
     regions = Compartmentalize(pic_array, 32)
-    # out_array = copy.deepcopy(pic_array) #
-    out_array = np.array(out_array, dtype=pic_array.dtype.type)  # keep same image type
-    # basicEdge(pic_array, out_array, regions) # preliminary edge detection via pixel gradient
-    noise_handler = Noise(out_array, regions, iterations=3, binary=False)
-    noise_handler.reduce()
-    out_array = pic_array > threshold_local(pic_array, block_size=35)
+    out_array = np.greater(pic_array, threshold_local(pic_array, block_size=35))
     out_array = np.array([[WHITE if p else 0 for p in row] for row in out_array], dtype=pic_array.dtype.type)
+
     if not nucleusMode and not virus_inject:
         out_array = skimage.util.invert(out_array)  # inversion required for soma stain
     skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeBasic.tif'), out_array)
-    # regions.setNoiseCompartments(out_array, 0.95)
-    # regions.reviseNoiseCompartments()
-    for i in range(len(out_array)):
-        for j in range(len(out_array[0])):
-            if regions.getCompartment(i, j).noise_compartment:
-                out_array[i][j] = 0
-    # enhanceEdges(pic_array, out_array, regions, nucleusMode=False) # use detected averages to guess missing edges
-    # skimage.external.tifffile.imsave(inFile.replace('.tif', '_edgeEnhance.tif'), out_array)
+
+    out_array = anisotropicDiffusionFilter(inFile.replace('.tif', '_edgeBasic.tif'))
     noise_handler = Noise(out_array, iterations=3, binary=True)
     noise_handler.reduce(largeNoise=True)  # reduce salt and pepper noise incorrectly labeled as edges
     noise_handler.reduce(largeNoise=False)
@@ -165,6 +163,8 @@ def remove_largeNoise(labeled, num_objects):
 
 
 def makeCells(inFile, clusters):
+    if clusters is None:
+        return
     labels_per_cluster = declumpKMeans(inFile, clusters, clusters[0].binary, Cluster.pic)
     assert len(clusters) == len(labels_per_cluster), 'each cluster must be labeled'
     for c, labels in zip(clusters, labels_per_cluster):
@@ -181,7 +181,8 @@ def getBinary(inFile, pic_array, binarized):
             segmented = loadObjects(inFile)
         except (FileNotFoundError, EOFError):
             pic = skimage.external.tifffile.TiffFile(inFile)
-            bin_array, segmented = makeBinary(inFile, pic_array, pic)
+
+            bin_array, segmented = makeBinary(inFile)
             pic.close()
         finally:
             global WHITE
@@ -191,7 +192,7 @@ def getBinary(inFile, pic_array, binarized):
             Cell_objects.WHITE = WHITE
     else:
         pic = skimage.external.tifffile.TiffFile(inFile)
-        bin_array, segmented = makeBinary(inFile, pic_array, pic)
+        bin_array, segmented = makeBinary(inFile)
         pic.close()
     # if virus_inject:
     #     vload = getLoadedPixels(pic_array, bin_array)
@@ -566,7 +567,9 @@ def getImageDirectories(locations):
 
 
 if args.localRun:
-    one_arg('/Users/arjitmisra/Documents/Kramer_Lab/Cell-Size-Project/experiment 1/RD1/piece1-gfp-normal_LocalTest/')
+    # one_arg('/Users/arjitmisra/Documents/Kramer_Lab/expt-2-rd1/piece3-gfp/')
+    one_arg('/Users/arjitmisra/Documents/Kramer_Lab/results12-26/e3wp2/')
+    one_arg('/Users/arjitmisra/Documents/Kramer_Lab/results12-26/nofilt/')
     # one_arg('../p2f1_normal/')
     # one_arg('../piece1-gfp-normal/')
     # one_arg('../cell12_RFPsequence/')
