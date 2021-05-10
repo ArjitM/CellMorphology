@@ -10,6 +10,7 @@ import numpy as np
 import skimage
 from skimage import util
 from skimage.filters import threshold_local, threshold_otsu
+import skimage.external
 import subprocess
 import copy
 import argparse
@@ -176,14 +177,13 @@ def makeCells(inFile, clusters):
 def getBinary(inFile, pic_array, binarized):
     if binarized:
         try:
-            with skimage.external.tifffile.TiffFile(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
+            with skimage.io.imread(inFile.replace('.tif', '_Binary.tif')) as pic_bin:
                 bin_array = pic_bin.asarray()
             segmented = loadObjects(inFile)
         except (FileNotFoundError, EOFError):
             pic = skimage.external.tifffile.TiffFile(inFile)
 
             bin_array, segmented = makeBinary(inFile)
-            pic.close()
         finally:
             global WHITE
             WHITE = skimage.dtype_limits(bin_array, True)[1]
@@ -252,8 +252,9 @@ def saveCells(inFile, stack_slice):
 
 
 def process_image(inFile, stack_slice, grid, binarized, clustered, split, overlay):
-    with skimage.external.tifffile.TiffFile(inFile) as pic:
-        pic_array = pic.asarray()
+    # with skimage.io.imread(inFile) as pic:
+    #     pic_array = pic.asarray()
+    pic_array = cv2.imread(inFile, cv2.IMREAD_GRAYSCALE)
     global nucleusMode
     nucleusMode = '-rfp-' in inFile or 'ucleus' in inFile
     global virus_inject
@@ -568,8 +569,8 @@ def getImageDirectories(locations):
 
 if args.localRun:
     # one_arg('/Users/arjitmisra/Documents/Kramer_Lab/expt-2-rd1/piece3-gfp/')
-    one_arg('/Users/arjitmisra/Documents/Kramer_Lab/results12-26/e3wp2/')
-    one_arg('/Users/arjitmisra/Documents/Kramer_Lab/results12-26/nofilt/')
+    one_arg('/Users/arjitmisra/Documents/Kramer_Lab/RAW/RAW/RD1/expt_2/piece1-gfp-normal3/')
+    # one_arg('/Users/arjitmisra/Documents/Kramer_Lab/results12-26/nofilt/')
     # one_arg('../p2f1_normal/')
     # one_arg('../piece1-gfp-normal/')
     # one_arg('../cell12_RFPsequence/')

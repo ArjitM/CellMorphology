@@ -150,8 +150,8 @@ class Stack:
                         if large_Cell is cell:
                             raise ValueError("Overlap method is not working")
                         assert large_Cell in self.large_Cells, 'grid large should add up'
-                        (contained, overlapping) = large_Cell.contains_or_overlaps(cell)
-                        if contained:  # contained
+                        (contains, overlapping) = large_Cell.contains_or_overlaps(cell)
+                        if contains:
                             new_cell = False
                             cell.stack_slice.contained_Cells.add(cell)
                             break
